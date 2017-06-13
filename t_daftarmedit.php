@@ -699,7 +699,26 @@ class ct_daftarm_edit extends ct_daftarm {
 		$this->DaftarmID->ViewCustomAttributes = "";
 
 		// UserID
-		$this->_UserID->ViewValue = $this->_UserID->CurrentValue;
+		if (strval($this->_UserID->CurrentValue) <> "") {
+			$sFilterWrk = "`UserID`" . ew_SearchString("=", $this->_UserID->CurrentValue, EW_DATATYPE_NUMBER, "");
+		$sSqlWrk = "SELECT `UserID`, `Nama` AS `DispFld`, '' AS `Disp2Fld`, '' AS `Disp3Fld`, '' AS `Disp4Fld` FROM `t_user`";
+		$sWhereWrk = "";
+		$this->_UserID->LookupFilters = array("dx1" => '`Nama`');
+		ew_AddFilter($sWhereWrk, $sFilterWrk);
+		$this->Lookup_Selecting($this->_UserID, $sWhereWrk); // Call Lookup selecting
+		if ($sWhereWrk <> "") $sSqlWrk .= " WHERE " . $sWhereWrk;
+			$rswrk = Conn()->Execute($sSqlWrk);
+			if ($rswrk && !$rswrk->EOF) { // Lookup values found
+				$arwrk = array();
+				$arwrk[1] = $rswrk->fields('DispFld');
+				$this->_UserID->ViewValue = $this->_UserID->DisplayValue($arwrk);
+				$rswrk->Close();
+			} else {
+				$this->_UserID->ViewValue = $this->_UserID->CurrentValue;
+			}
+		} else {
+			$this->_UserID->ViewValue = NULL;
+		}
 		$this->_UserID->ViewCustomAttributes = "";
 
 		// TglJam
@@ -763,10 +782,30 @@ class ct_daftarm_edit extends ct_daftarm {
 		} elseif ($this->RowType == EW_ROWTYPE_EDIT) { // Edit row
 
 			// UserID
-			$this->_UserID->EditAttrs["class"] = "form-control";
 			$this->_UserID->EditCustomAttributes = "";
-			$this->_UserID->EditValue = ew_HtmlEncode($this->_UserID->CurrentValue);
-			$this->_UserID->PlaceHolder = ew_RemoveHtml($this->_UserID->FldCaption());
+			if (trim(strval($this->_UserID->CurrentValue)) == "") {
+				$sFilterWrk = "0=1";
+			} else {
+				$sFilterWrk = "`UserID`" . ew_SearchString("=", $this->_UserID->CurrentValue, EW_DATATYPE_NUMBER, "");
+			}
+			$sSqlWrk = "SELECT `UserID`, `Nama` AS `DispFld`, '' AS `Disp2Fld`, '' AS `Disp3Fld`, '' AS `Disp4Fld`, '' AS `SelectFilterFld`, '' AS `SelectFilterFld2`, '' AS `SelectFilterFld3`, '' AS `SelectFilterFld4` FROM `t_user`";
+			$sWhereWrk = "";
+			$this->_UserID->LookupFilters = array("dx1" => '`Nama`');
+			ew_AddFilter($sWhereWrk, $sFilterWrk);
+			if (!$GLOBALS["t_daftarm"]->UserIDAllow("edit")) $sWhereWrk = $GLOBALS["t_user"]->AddUserIDFilter($sWhereWrk);
+			$this->Lookup_Selecting($this->_UserID, $sWhereWrk); // Call Lookup selecting
+			if ($sWhereWrk <> "") $sSqlWrk .= " WHERE " . $sWhereWrk;
+			$rswrk = Conn()->Execute($sSqlWrk);
+			if ($rswrk && !$rswrk->EOF) { // Lookup values found
+				$arwrk = array();
+				$arwrk[1] = ew_HtmlEncode($rswrk->fields('DispFld'));
+				$this->_UserID->ViewValue = $this->_UserID->DisplayValue($arwrk);
+			} else {
+				$this->_UserID->ViewValue = $Language->Phrase("PleaseSelect");
+			}
+			$arwrk = ($rswrk) ? $rswrk->GetRows() : array();
+			if ($rswrk) $rswrk->Close();
+			$this->_UserID->EditValue = $arwrk;
 
 			// TglJam
 			$this->TglJam->EditAttrs["class"] = "form-control";
@@ -841,9 +880,6 @@ class ct_daftarm_edit extends ct_daftarm {
 		// Check if validation required
 		if (!EW_SERVER_VALIDATE)
 			return ($gsFormError == "");
-		if (!ew_CheckInteger($this->_UserID->FormValue)) {
-			ew_AddMessage($gsFormError, $this->_UserID->FldErrMsg());
-		}
 		if (!ew_CheckDateDef($this->TglJam->FormValue)) {
 			ew_AddMessage($gsFormError, $this->TglJam->FldErrMsg());
 		}
@@ -1032,6 +1068,19 @@ class ct_daftarm_edit extends ct_daftarm {
 		global $gsLanguage;
 		$pageId = $pageId ?: $this->PageID;
 		switch ($fld->FldVar) {
+		case "x__UserID":
+			$sSqlWrk = "";
+			$sSqlWrk = "SELECT `UserID` AS `LinkFld`, `Nama` AS `DispFld`, '' AS `Disp2Fld`, '' AS `Disp3Fld`, '' AS `Disp4Fld` FROM `t_user`";
+			$sWhereWrk = "{filter}";
+			$this->_UserID->LookupFilters = array("dx1" => '`Nama`');
+			if (!$GLOBALS["t_daftarm"]->UserIDAllow("edit")) $sWhereWrk = $GLOBALS["t_user"]->AddUserIDFilter($sWhereWrk);
+			$fld->LookupFilters += array("s" => $sSqlWrk, "d" => "", "f0" => '`UserID` = {filter_value}', "t0" => "3", "fn0" => "");
+			$sSqlWrk = "";
+			$this->Lookup_Selecting($this->_UserID, $sWhereWrk); // Call Lookup selecting
+			if ($sWhereWrk <> "") $sSqlWrk .= " WHERE " . $sWhereWrk;
+			if ($sSqlWrk <> "")
+				$fld->LookupFilters["s"] .= $sSqlWrk;
+			break;
 		}
 	}
 
@@ -1151,9 +1200,6 @@ ft_daftarmedit.Validate = function() {
 	for (var i = startcnt; i <= rowcnt; i++) {
 		var infix = ($k[0]) ? String(i) : "";
 		$fobj.data("rowindex", infix);
-			elm = this.GetElements("x" + infix + "__UserID");
-			if (elm && !ew_CheckInteger(elm.value))
-				return this.OnError(elm, "<?php echo ew_JsEncode2($t_daftarm->_UserID->FldErrMsg()) ?>");
 			elm = this.GetElements("x" + infix + "_TglJam");
 			if (elm && !ew_CheckDateDef(elm.value))
 				return this.OnError(elm, "<?php echo ew_JsEncode2($t_daftarm->TglJam->FldErrMsg()) ?>");
@@ -1193,6 +1239,7 @@ ft_daftarmedit.ValidateRequired = false;
 <?php } ?>
 
 // Dynamic selection lists
+ft_daftarmedit.Lists["x__UserID"] = {"LinkField":"x__UserID","Ajax":true,"AutoFill":false,"DisplayFields":["x_Nama","","",""],"ParentFields":[],"ChildFields":[],"FilterFields":[],"Options":[],"Template":"","LinkTable":"t_user"};
 ft_daftarmedit.Lists["x_Acc[]"] = {"LinkField":"","Ajax":null,"AutoFill":false,"DisplayFields":["","","",""],"ParentFields":[],"ChildFields":[],"FilterFields":[],"Options":[],"Template":""};
 ft_daftarmedit.Lists["x_Acc[]"].Options = <?php echo json_encode($t_daftarm->Acc->Options()) ?>;
 
@@ -1273,7 +1320,12 @@ $t_daftarm_edit->ShowMessage();
 		<label id="elh_t_daftarm__UserID" for="x__UserID" class="col-sm-2 control-label ewLabel"><?php echo $t_daftarm->_UserID->FldCaption() ?></label>
 		<div class="col-sm-10"><div<?php echo $t_daftarm->_UserID->CellAttributes() ?>>
 <span id="el_t_daftarm__UserID">
-<input type="text" data-table="t_daftarm" data-field="x__UserID" name="x__UserID" id="x__UserID" size="30" placeholder="<?php echo ew_HtmlEncode($t_daftarm->_UserID->getPlaceHolder()) ?>" value="<?php echo $t_daftarm->_UserID->EditValue ?>"<?php echo $t_daftarm->_UserID->EditAttributes() ?>>
+<span class="ewLookupList">
+	<span onclick="jQuery(this).parent().next().click();" tabindex="-1" class="form-control ewLookupText" id="lu_x__UserID"><?php echo (strval($t_daftarm->_UserID->ViewValue) == "" ? $Language->Phrase("PleaseSelect") : $t_daftarm->_UserID->ViewValue); ?></span>
+</span>
+<button type="button" title="<?php echo ew_HtmlEncode(str_replace("%s", ew_RemoveHtml($t_daftarm->_UserID->FldCaption()), $Language->Phrase("LookupLink", TRUE))) ?>" onclick="ew_ModalLookupShow({lnk:this,el:'x__UserID',m:0,n:10});" class="ewLookupBtn btn btn-default btn-sm"><span class="glyphicon glyphicon-search ewIcon"></span></button>
+<input type="hidden" data-table="t_daftarm" data-field="x__UserID" data-multiple="0" data-lookup="1" data-value-separator="<?php echo $t_daftarm->_UserID->DisplayValueSeparatorAttribute() ?>" name="x__UserID" id="x__UserID" value="<?php echo $t_daftarm->_UserID->CurrentValue ?>"<?php echo $t_daftarm->_UserID->EditAttributes() ?>>
+<input type="hidden" name="s_x__UserID" id="s_x__UserID" value="<?php echo $t_daftarm->_UserID->LookupFilterQuery() ?>">
 </span>
 <?php echo $t_daftarm->_UserID->CustomMsg ?></div></div>
 	</div>

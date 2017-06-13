@@ -1719,7 +1719,26 @@ class ct_daftarm_list extends ct_daftarm {
 		$this->DaftarmID->ViewCustomAttributes = "";
 
 		// UserID
-		$this->_UserID->ViewValue = $this->_UserID->CurrentValue;
+		if (strval($this->_UserID->CurrentValue) <> "") {
+			$sFilterWrk = "`UserID`" . ew_SearchString("=", $this->_UserID->CurrentValue, EW_DATATYPE_NUMBER, "");
+		$sSqlWrk = "SELECT `UserID`, `Nama` AS `DispFld`, '' AS `Disp2Fld`, '' AS `Disp3Fld`, '' AS `Disp4Fld` FROM `t_user`";
+		$sWhereWrk = "";
+		$this->_UserID->LookupFilters = array("dx1" => '`Nama`');
+		ew_AddFilter($sWhereWrk, $sFilterWrk);
+		$this->Lookup_Selecting($this->_UserID, $sWhereWrk); // Call Lookup selecting
+		if ($sWhereWrk <> "") $sSqlWrk .= " WHERE " . $sWhereWrk;
+			$rswrk = Conn()->Execute($sSqlWrk);
+			if ($rswrk && !$rswrk->EOF) { // Lookup values found
+				$arwrk = array();
+				$arwrk[1] = $rswrk->fields('DispFld');
+				$this->_UserID->ViewValue = $this->_UserID->DisplayValue($arwrk);
+				$rswrk->Close();
+			} else {
+				$this->_UserID->ViewValue = $this->_UserID->CurrentValue;
+			}
+		} else {
+			$this->_UserID->ViewValue = NULL;
+		}
 		$this->_UserID->ViewCustomAttributes = "";
 
 		// TglJam

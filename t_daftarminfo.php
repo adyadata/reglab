@@ -57,8 +57,10 @@ class ct_daftarm extends cTable {
 		$this->fields['DaftarmID'] = &$this->DaftarmID;
 
 		// UserID
-		$this->_UserID = new cField('t_daftarm', 't_daftarm', 'x__UserID', 'UserID', '`UserID`', '`UserID`', 3, -1, FALSE, '`UserID`', FALSE, FALSE, FALSE, 'FORMATTED TEXT', 'TEXT');
+		$this->_UserID = new cField('t_daftarm', 't_daftarm', 'x__UserID', 'UserID', '`UserID`', '`UserID`', 3, -1, FALSE, '`UserID`', FALSE, FALSE, FALSE, 'FORMATTED TEXT', 'SELECT');
 		$this->_UserID->Sortable = TRUE; // Allow sort
+		$this->_UserID->UsePleaseSelect = TRUE; // Use PleaseSelect by default
+		$this->_UserID->PleaseSelectText = $Language->Phrase("PleaseSelect"); // PleaseSelect text
 		$this->_UserID->FldDefaultErrMsg = $Language->Phrase("IncorrectInteger");
 		$this->fields['UserID'] = &$this->_UserID;
 
@@ -655,7 +657,26 @@ class ct_daftarm extends cTable {
 		$this->DaftarmID->ViewCustomAttributes = "";
 
 		// UserID
-		$this->_UserID->ViewValue = $this->_UserID->CurrentValue;
+		if (strval($this->_UserID->CurrentValue) <> "") {
+			$sFilterWrk = "`UserID`" . ew_SearchString("=", $this->_UserID->CurrentValue, EW_DATATYPE_NUMBER, "");
+		$sSqlWrk = "SELECT `UserID`, `Nama` AS `DispFld`, '' AS `Disp2Fld`, '' AS `Disp3Fld`, '' AS `Disp4Fld` FROM `t_user`";
+		$sWhereWrk = "";
+		$this->_UserID->LookupFilters = array("dx1" => '`Nama`');
+		ew_AddFilter($sWhereWrk, $sFilterWrk);
+		$this->Lookup_Selecting($this->_UserID, $sWhereWrk); // Call Lookup selecting
+		if ($sWhereWrk <> "") $sSqlWrk .= " WHERE " . $sWhereWrk;
+			$rswrk = Conn()->Execute($sSqlWrk);
+			if ($rswrk && !$rswrk->EOF) { // Lookup values found
+				$arwrk = array();
+				$arwrk[1] = $rswrk->fields('DispFld');
+				$this->_UserID->ViewValue = $this->_UserID->DisplayValue($arwrk);
+				$rswrk->Close();
+			} else {
+				$this->_UserID->ViewValue = $this->_UserID->CurrentValue;
+			}
+		} else {
+			$this->_UserID->ViewValue = NULL;
+		}
 		$this->_UserID->ViewCustomAttributes = "";
 
 		// TglJam
@@ -742,8 +763,6 @@ class ct_daftarm extends cTable {
 		// UserID
 		$this->_UserID->EditAttrs["class"] = "form-control";
 		$this->_UserID->EditCustomAttributes = "";
-		$this->_UserID->EditValue = $this->_UserID->CurrentValue;
-		$this->_UserID->PlaceHolder = ew_RemoveHtml($this->_UserID->FldCaption());
 
 		// TglJam
 		$this->TglJam->EditAttrs["class"] = "form-control";

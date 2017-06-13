@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<configuration date="2017/06/13" author="e.World Technology Ltd.">
+  <project id="{BDF410E2-F8A1-44BF-83FA-BA321C2274F7}" file="C:\xampp\htdocs\reglab\reglab.pmp" name="reglab" product="PHPMaker" version="13.0" datetime="2017/06/13 16:01:44" languagefolder="phplang" userlevel="-2,&quot;Anonymous&quot;,0;0,&quot;Default&quot;,0">
+    <table id="t_user" name="t_user" caption="User" userlevel="-2,&quot;Anonymous&quot;,0;0,&quot;Default&quot;,0" priv="1" />
+    <table id="t_audit_trail" name="t_audit_trail" caption="Activity Log." userlevel="-2,&quot;Anonymous&quot;,0;0,&quot;Default&quot;,0" priv="1" />
+    <table id="t_user_level_permissions" name="t_user_level_permissions" caption="t user level permissions" userlevel="-2,&quot;Anonymous&quot;,0;0,&quot;Default&quot;,0" priv="1" />
+    <table id="t_user_levels" name="t_user_levels" caption="Hak Akses" userlevel="-2,&quot;Anonymous&quot;,0;0,&quot;Default&quot;,0" priv="1" />
+    <table id="c_home_php" name="c_home.php" caption="Home" userlevel="-2,&quot;Anonymous&quot;,0;0,&quot;Default&quot;,0" priv="1" />
+    <table id="t_daftarm" name="t_daftarm" caption="Pendaftaran" userlevel="-2,&quot;Anonymous&quot;,0;0,&quot;Default&quot;,0" priv="1" />
+    <table id="t_praktikum" name="t_praktikum" caption="Praktikum" userlevel="-2,&quot;Anonymous&quot;,0;0,&quot;Default&quot;,0" priv="1" />
+    <table id="t_daftard" name="t_daftard" caption="Detail Pendaftaran" userlevel="-2,&quot;Anonymous&quot;,0;0,&quot;Default&quot;,0" priv="1" />
+  </project>
+</configuration>

@@ -840,9 +840,9 @@ class ct_daftarm_view extends ct_daftarm {
 		// UserID
 		if (strval($this->_UserID->CurrentValue) <> "") {
 			$sFilterWrk = "`UserID`" . ew_SearchString("=", $this->_UserID->CurrentValue, EW_DATATYPE_NUMBER, "");
-		$sSqlWrk = "SELECT `UserID`, `Nama` AS `DispFld`, '' AS `Disp2Fld`, '' AS `Disp3Fld`, '' AS `Disp4Fld` FROM `t_user`";
+		$sSqlWrk = "SELECT `UserID`, `Nama` AS `DispFld`, `NIM` AS `Disp2Fld`, '' AS `Disp3Fld`, '' AS `Disp4Fld` FROM `t_user`";
 		$sWhereWrk = "";
-		$this->_UserID->LookupFilters = array("dx1" => '`Nama`');
+		$this->_UserID->LookupFilters = array("dx1" => '`Nama`', "dx2" => '`NIM`');
 		ew_AddFilter($sWhereWrk, $sFilterWrk);
 		$this->Lookup_Selecting($this->_UserID, $sWhereWrk); // Call Lookup selecting
 		if ($sWhereWrk <> "") $sSqlWrk .= " WHERE " . $sWhereWrk;
@@ -850,6 +850,7 @@ class ct_daftarm_view extends ct_daftarm {
 			if ($rswrk && !$rswrk->EOF) { // Lookup values found
 				$arwrk = array();
 				$arwrk[1] = $rswrk->fields('DispFld');
+				$arwrk[2] = $rswrk->fields('Disp2Fld');
 				$this->_UserID->ViewValue = $this->_UserID->DisplayValue($arwrk);
 				$rswrk->Close();
 			} else {
@@ -867,6 +868,9 @@ class ct_daftarm_view extends ct_daftarm {
 
 		// BuktiBayar
 		if (!ew_Empty($this->BuktiBayar->Upload->DbValue)) {
+			$this->BuktiBayar->ImageWidth = EW_THUMBNAIL_DEFAULT_WIDTH;
+			$this->BuktiBayar->ImageHeight = EW_THUMBNAIL_DEFAULT_HEIGHT;
+			$this->BuktiBayar->ImageAlt = $this->BuktiBayar->FldAlt();
 			$this->BuktiBayar->ViewValue = $this->BuktiBayar->Upload->DbValue;
 		} else {
 			$this->BuktiBayar->ViewValue = "";
@@ -881,13 +885,7 @@ class ct_daftarm_view extends ct_daftarm {
 
 		// Acc
 		if (strval($this->Acc->CurrentValue) <> "") {
-			$this->Acc->ViewValue = "";
-			$arwrk = explode(",", strval($this->Acc->CurrentValue));
-			$cnt = count($arwrk);
-			for ($ari = 0; $ari < $cnt; $ari++) {
-				$this->Acc->ViewValue .= $this->Acc->OptionCaption(trim($arwrk[$ari]));
-				if ($ari < $cnt-1) $this->Acc->ViewValue .= ew_ViewOptionSeparator($ari);
-			}
+			$this->Acc->ViewValue = $this->Acc->OptionCaption($this->Acc->CurrentValue);
 		} else {
 			$this->Acc->ViewValue = NULL;
 		}
@@ -905,9 +903,21 @@ class ct_daftarm_view extends ct_daftarm {
 
 			// BuktiBayar
 			$this->BuktiBayar->LinkCustomAttributes = "";
-			$this->BuktiBayar->HrefValue = "";
+			if (!ew_Empty($this->BuktiBayar->Upload->DbValue)) {
+				$this->BuktiBayar->HrefValue = ew_GetFileUploadUrl($this->BuktiBayar, $this->BuktiBayar->Upload->DbValue); // Add prefix/suffix
+				$this->BuktiBayar->LinkAttrs["target"] = ""; // Add target
+				if ($this->Export <> "") $this->BuktiBayar->HrefValue = ew_ConvertFullUrl($this->BuktiBayar->HrefValue);
+			} else {
+				$this->BuktiBayar->HrefValue = "";
+			}
 			$this->BuktiBayar->HrefValue2 = $this->BuktiBayar->UploadPath . $this->BuktiBayar->Upload->DbValue;
 			$this->BuktiBayar->TooltipValue = "";
+			if ($this->BuktiBayar->UseColorbox) {
+				if (ew_Empty($this->BuktiBayar->TooltipValue))
+					$this->BuktiBayar->LinkAttrs["title"] = $Language->Phrase("ViewImageGallery");
+				$this->BuktiBayar->LinkAttrs["data-rel"] = "t_daftarm_x_BuktiBayar";
+				ew_AppendClass($this->BuktiBayar->LinkAttrs["class"], "ewLightbox");
+			}
 
 			// JumlahBayar
 			$this->JumlahBayar->LinkCustomAttributes = "";
@@ -1374,9 +1384,9 @@ ft_daftarmview.ValidateRequired = false;
 <?php } ?>
 
 // Dynamic selection lists
-ft_daftarmview.Lists["x__UserID"] = {"LinkField":"x__UserID","Ajax":true,"AutoFill":false,"DisplayFields":["x_Nama","","",""],"ParentFields":[],"ChildFields":[],"FilterFields":[],"Options":[],"Template":"","LinkTable":"t_user"};
-ft_daftarmview.Lists["x_Acc[]"] = {"LinkField":"","Ajax":null,"AutoFill":false,"DisplayFields":["","","",""],"ParentFields":[],"ChildFields":[],"FilterFields":[],"Options":[],"Template":""};
-ft_daftarmview.Lists["x_Acc[]"].Options = <?php echo json_encode($t_daftarm->Acc->Options()) ?>;
+ft_daftarmview.Lists["x__UserID"] = {"LinkField":"x__UserID","Ajax":true,"AutoFill":false,"DisplayFields":["x_Nama","x_NIM","",""],"ParentFields":[],"ChildFields":[],"FilterFields":[],"Options":[],"Template":"","LinkTable":"t_user"};
+ft_daftarmview.Lists["x_Acc"] = {"LinkField":"","Ajax":null,"AutoFill":false,"DisplayFields":["","","",""],"ParentFields":[],"ChildFields":[],"FilterFields":[],"Options":[],"Template":""};
+ft_daftarmview.Lists["x_Acc"].Options = <?php echo json_encode($t_daftarm->Acc->Options()) ?>;
 
 // Form object for search
 </script>
@@ -1492,7 +1502,7 @@ $t_daftarm_view->ShowMessage();
 		<td><span id="elh_t_daftarm_BuktiBayar"><?php echo $t_daftarm->BuktiBayar->FldCaption() ?></span></td>
 		<td data-name="BuktiBayar"<?php echo $t_daftarm->BuktiBayar->CellAttributes() ?>>
 <span id="el_t_daftarm_BuktiBayar">
-<span<?php echo $t_daftarm->BuktiBayar->ViewAttributes() ?>>
+<span>
 <?php echo ew_GetFileViewTag($t_daftarm->BuktiBayar, $t_daftarm->BuktiBayar->ViewValue) ?>
 </span>
 </span>

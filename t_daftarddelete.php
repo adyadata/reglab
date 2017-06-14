@@ -286,9 +286,6 @@ class ct_daftard_delete extends ct_daftard {
 			$Security->UserID_Loaded();
 		}
 		$this->CurrentAction = (@$_GET["a"] <> "") ? $_GET["a"] : @$_POST["a_list"]; // Set up current action
-		$this->DaftradID->SetVisibility();
-		$this->DaftradID->Visible = !$this->IsAdd() && !$this->IsCopy() && !$this->IsGridAdd();
-		$this->DaftarmID->SetVisibility();
 		$this->PraktikumID->SetVisibility();
 		$this->Tgl->SetVisibility();
 
@@ -546,16 +543,6 @@ class ct_daftard_delete extends ct_daftard {
 		$this->Tgl->ViewValue = $this->Tgl->CurrentValue;
 		$this->Tgl->ViewValue = ew_FormatDateTime($this->Tgl->ViewValue, 0);
 		$this->Tgl->ViewCustomAttributes = "";
-
-			// DaftradID
-			$this->DaftradID->LinkCustomAttributes = "";
-			$this->DaftradID->HrefValue = "";
-			$this->DaftradID->TooltipValue = "";
-
-			// DaftarmID
-			$this->DaftarmID->LinkCustomAttributes = "";
-			$this->DaftarmID->HrefValue = "";
-			$this->DaftarmID->TooltipValue = "";
 
 			// PraktikumID
 			$this->PraktikumID->LinkCustomAttributes = "";
@@ -880,12 +867,6 @@ $t_daftard_delete->ShowMessage();
 <?php echo $t_daftard->TableCustomInnerHtml ?>
 	<thead>
 	<tr class="ewTableHeader">
-<?php if ($t_daftard->DaftradID->Visible) { // DaftradID ?>
-		<th><span id="elh_t_daftard_DaftradID" class="t_daftard_DaftradID"><?php echo $t_daftard->DaftradID->FldCaption() ?></span></th>
-<?php } ?>
-<?php if ($t_daftard->DaftarmID->Visible) { // DaftarmID ?>
-		<th><span id="elh_t_daftard_DaftarmID" class="t_daftard_DaftarmID"><?php echo $t_daftard->DaftarmID->FldCaption() ?></span></th>
-<?php } ?>
 <?php if ($t_daftard->PraktikumID->Visible) { // PraktikumID ?>
 		<th><span id="elh_t_daftard_PraktikumID" class="t_daftard_PraktikumID"><?php echo $t_daftard->PraktikumID->FldCaption() ?></span></th>
 <?php } ?>
@@ -913,22 +894,6 @@ while (!$t_daftard_delete->Recordset->EOF) {
 	$t_daftard_delete->RenderRow();
 ?>
 	<tr<?php echo $t_daftard->RowAttributes() ?>>
-<?php if ($t_daftard->DaftradID->Visible) { // DaftradID ?>
-		<td<?php echo $t_daftard->DaftradID->CellAttributes() ?>>
-<span id="el<?php echo $t_daftard_delete->RowCnt ?>_t_daftard_DaftradID" class="t_daftard_DaftradID">
-<span<?php echo $t_daftard->DaftradID->ViewAttributes() ?>>
-<?php echo $t_daftard->DaftradID->ListViewValue() ?></span>
-</span>
-</td>
-<?php } ?>
-<?php if ($t_daftard->DaftarmID->Visible) { // DaftarmID ?>
-		<td<?php echo $t_daftard->DaftarmID->CellAttributes() ?>>
-<span id="el<?php echo $t_daftard_delete->RowCnt ?>_t_daftard_DaftarmID" class="t_daftard_DaftarmID">
-<span<?php echo $t_daftard->DaftarmID->ViewAttributes() ?>>
-<?php echo $t_daftard->DaftarmID->ListViewValue() ?></span>
-</span>
-</td>
-<?php } ?>
 <?php if ($t_daftard->PraktikumID->Visible) { // PraktikumID ?>
 		<td<?php echo $t_daftard->PraktikumID->CellAttributes() ?>>
 <span id="el<?php echo $t_daftard_delete->RowCnt ?>_t_daftard_PraktikumID" class="t_daftard_PraktikumID">

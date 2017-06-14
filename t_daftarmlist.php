@@ -363,6 +363,9 @@ class ct_daftarm_list extends ct_daftarm {
 			$Security->UserID_Loaded();
 		}
 
+		// Create form object
+		$objForm = new cFormObj();
+
 		// Get export parameters
 		$custom = "";
 		if (@$_GET["export"] <> "") {
@@ -411,6 +414,7 @@ class ct_daftarm_list extends ct_daftarm {
 
 		// Setup export options
 		$this->SetupExportOptions();
+		$this->_UserID->SetVisibility();
 		$this->TglJam->SetVisibility();
 		$this->BuktiBayar->SetVisibility();
 		$this->JumlahBayar->SetVisibility();
@@ -585,6 +589,71 @@ class ct_daftarm_list extends ct_daftarm {
 			if ($this->Export == "")
 				$this->SetupBreadcrumb();
 
+			// Check QueryString parameters
+			if (@$_GET["a"] <> "") {
+				$this->CurrentAction = $_GET["a"];
+
+				// Clear inline mode
+				if ($this->CurrentAction == "cancel")
+					$this->ClearInlineMode();
+
+				// Switch to grid edit mode
+				if ($this->CurrentAction == "gridedit")
+					$this->GridEditMode();
+
+				// Switch to inline edit mode
+				if ($this->CurrentAction == "edit")
+					$this->InlineEditMode();
+
+				// Switch to inline add mode
+				if ($this->CurrentAction == "add" || $this->CurrentAction == "copy")
+					$this->InlineAddMode();
+
+				// Switch to grid add mode
+				if ($this->CurrentAction == "gridadd")
+					$this->GridAddMode();
+			} else {
+				if (@$_POST["a_list"] <> "") {
+					$this->CurrentAction = $_POST["a_list"]; // Get action
+
+					// Grid Update
+					if (($this->CurrentAction == "gridupdate" || $this->CurrentAction == "gridoverwrite") && @$_SESSION[EW_SESSION_INLINE_MODE] == "gridedit") {
+						if ($this->ValidateGridForm()) {
+							$bGridUpdate = $this->GridUpdate();
+						} else {
+							$bGridUpdate = FALSE;
+							$this->setFailureMessage($gsFormError);
+						}
+						if (!$bGridUpdate) {
+							$this->EventCancelled = TRUE;
+							$this->CurrentAction = "gridedit"; // Stay in Grid Edit mode
+						}
+					}
+
+					// Inline Update
+					if (($this->CurrentAction == "update" || $this->CurrentAction == "overwrite") && @$_SESSION[EW_SESSION_INLINE_MODE] == "edit")
+						$this->InlineUpdate();
+
+					// Insert Inline
+					if ($this->CurrentAction == "insert" && @$_SESSION[EW_SESSION_INLINE_MODE] == "add")
+						$this->InlineInsert();
+
+					// Grid Insert
+					if ($this->CurrentAction == "gridinsert" && @$_SESSION[EW_SESSION_INLINE_MODE] == "gridadd") {
+						if ($this->ValidateGridForm()) {
+							$bGridInsert = $this->GridInsert();
+						} else {
+							$bGridInsert = FALSE;
+							$this->setFailureMessage($gsFormError);
+						}
+						if (!$bGridInsert) {
+							$this->EventCancelled = TRUE;
+							$this->CurrentAction = "gridadd"; // Stay in Grid Add mode
+						}
+					}
+				}
+			}
+
 			// Hide list options
 			if ($this->Export <> "") {
 				$this->ListOptions->HideAllOptions(array("sequence"));
@@ -606,6 +675,14 @@ class ct_daftarm_list extends ct_daftarm {
 			if ($this->Export <> "") {
 				foreach ($this->OtherOptions as &$option)
 					$option->HideAllOptions();
+			}
+
+			// Show grid delete link for grid add / grid edit
+			if ($this->AllowAddDeleteRow) {
+				if ($this->CurrentAction == "gridadd" || $this->CurrentAction == "gridedit") {
+					$item = $this->ListOptions->GetItem("griddelete");
+					if ($item) $item->Visible = TRUE;
+				}
 			}
 
 			// Get default search criteria
@@ -721,6 +798,235 @@ class ct_daftarm_list extends ct_daftarm {
 		}
 	}
 
+	//  Exit inline mode
+	function ClearInlineMode() {
+		$this->setKey("DaftarmID", ""); // Clear inline edit key
+		$this->JumlahBayar->FormValue = ""; // Clear form value
+		$this->LastAction = $this->CurrentAction; // Save last action
+		$this->CurrentAction = ""; // Clear action
+		$_SESSION[EW_SESSION_INLINE_MODE] = ""; // Clear inline mode
+	}
+
+	// Switch to Grid Add mode
+	function GridAddMode() {
+		$_SESSION[EW_SESSION_INLINE_MODE] = "gridadd"; // Enabled grid add
+	}
+
+	// Switch to Grid Edit mode
+	function GridEditMode() {
+		$_SESSION[EW_SESSION_INLINE_MODE] = "gridedit"; // Enable grid edit
+	}
+
+	// Switch to Inline Edit mode
+	function InlineEditMode() {
+		global $Security, $Language;
+		if (!$Security->CanEdit())
+			$this->Page_Terminate("login.php"); // Go to login page
+		$bInlineEdit = TRUE;
+		if (@$_GET["DaftarmID"] <> "") {
+			$this->DaftarmID->setQueryStringValue($_GET["DaftarmID"]);
+		} else {
+			$bInlineEdit = FALSE;
+		}
+		if ($bInlineEdit) {
+			if ($this->LoadRow()) {
+				$this->setKey("DaftarmID", $this->DaftarmID->CurrentValue); // Set up inline edit key
+				$_SESSION[EW_SESSION_INLINE_MODE] = "edit"; // Enable inline edit
+			}
+		}
+	}
+
+	// Perform update to Inline Edit record
+	function InlineUpdate() {
+		global $Language, $objForm, $gsFormError;
+		$objForm->Index = 1; 
+		$this->LoadFormValues(); // Get form values
+
+		// Validate form
+		$bInlineUpdate = TRUE;
+		if (!$this->ValidateForm()) {	
+			$bInlineUpdate = FALSE; // Form error, reset action
+			$this->setFailureMessage($gsFormError);
+		} else {
+			$bInlineUpdate = FALSE;
+			$rowkey = strval($objForm->GetValue($this->FormKeyName));
+			if ($this->SetupKeyValues($rowkey)) { // Set up key values
+				if ($this->CheckInlineEditKey()) { // Check key
+					$this->SendEmail = TRUE; // Send email on update success
+					$bInlineUpdate = $this->EditRow(); // Update record
+				} else {
+					$bInlineUpdate = FALSE;
+				}
+			}
+		}
+		if ($bInlineUpdate) { // Update success
+			if ($this->getSuccessMessage() == "")
+				$this->setSuccessMessage($Language->Phrase("UpdateSuccess")); // Set up success message
+			$this->ClearInlineMode(); // Clear inline edit mode
+		} else {
+			if ($this->getFailureMessage() == "")
+				$this->setFailureMessage($Language->Phrase("UpdateFailed")); // Set update failed message
+			$this->EventCancelled = TRUE; // Cancel event
+			$this->CurrentAction = "edit"; // Stay in edit mode
+		}
+	}
+
+	// Check Inline Edit key
+	function CheckInlineEditKey() {
+
+		//CheckInlineEditKey = True
+		if (strval($this->getKey("DaftarmID")) <> strval($this->DaftarmID->CurrentValue))
+			return FALSE;
+		return TRUE;
+	}
+
+	// Switch to Inline Add mode
+	function InlineAddMode() {
+		global $Security, $Language;
+		if (!$Security->CanAdd())
+			$this->Page_Terminate("login.php"); // Return to login page
+		if ($this->CurrentAction == "copy") {
+			if (@$_GET["DaftarmID"] <> "") {
+				$this->DaftarmID->setQueryStringValue($_GET["DaftarmID"]);
+				$this->setKey("DaftarmID", $this->DaftarmID->CurrentValue); // Set up key
+			} else {
+				$this->setKey("DaftarmID", ""); // Clear key
+				$this->CurrentAction = "add";
+			}
+		}
+		$_SESSION[EW_SESSION_INLINE_MODE] = "add"; // Enable inline add
+	}
+
+	// Perform update to Inline Add/Copy record
+	function InlineInsert() {
+		global $Language, $objForm, $gsFormError;
+		$this->LoadOldRecord(); // Load old recordset
+		$objForm->Index = 0;
+		$this->LoadFormValues(); // Get form values
+
+		// Validate form
+		if (!$this->ValidateForm()) {
+			$this->setFailureMessage($gsFormError); // Set validation error message
+			$this->EventCancelled = TRUE; // Set event cancelled
+			$this->CurrentAction = "add"; // Stay in add mode
+			return;
+		}
+		$this->SendEmail = TRUE; // Send email on add success
+		if ($this->AddRow($this->OldRecordset)) { // Add record
+			if ($this->getSuccessMessage() == "")
+				$this->setSuccessMessage($Language->Phrase("AddSuccess")); // Set up add success message
+			$this->ClearInlineMode(); // Clear inline add mode
+		} else { // Add failed
+			$this->EventCancelled = TRUE; // Set event cancelled
+			$this->CurrentAction = "add"; // Stay in add mode
+		}
+	}
+
+	// Perform update to grid
+	function GridUpdate() {
+		global $Language, $objForm, $gsFormError;
+		$bGridUpdate = TRUE;
+
+		// Get old recordset
+		$this->CurrentFilter = $this->BuildKeyFilter();
+		if ($this->CurrentFilter == "")
+			$this->CurrentFilter = "0=1";
+		$sSql = $this->SQL();
+		$conn = &$this->Connection();
+		if ($rs = $conn->Execute($sSql)) {
+			$rsold = $rs->GetRows();
+			$rs->Close();
+		}
+
+		// Call Grid Updating event
+		if (!$this->Grid_Updating($rsold)) {
+			if ($this->getFailureMessage() == "")
+				$this->setFailureMessage($Language->Phrase("GridEditCancelled")); // Set grid edit cancelled message
+			return FALSE;
+		}
+
+		// Begin transaction
+		$conn->BeginTrans();
+		if ($this->AuditTrailOnEdit) $this->WriteAuditTrailDummy($Language->Phrase("BatchUpdateBegin")); // Batch update begin
+		$sKey = "";
+
+		// Update row index and get row key
+		$objForm->Index = -1;
+		$rowcnt = strval($objForm->GetValue($this->FormKeyCountName));
+		if ($rowcnt == "" || !is_numeric($rowcnt))
+			$rowcnt = 0;
+
+		// Update all rows based on key
+		for ($rowindex = 1; $rowindex <= $rowcnt; $rowindex++) {
+			$objForm->Index = $rowindex;
+			$rowkey = strval($objForm->GetValue($this->FormKeyName));
+			$rowaction = strval($objForm->GetValue($this->FormActionName));
+
+			// Load all values and keys
+			if ($rowaction <> "insertdelete") { // Skip insert then deleted rows
+				$this->LoadFormValues(); // Get form values
+				if ($rowaction == "" || $rowaction == "edit" || $rowaction == "delete") {
+					$bGridUpdate = $this->SetupKeyValues($rowkey); // Set up key values
+				} else {
+					$bGridUpdate = TRUE;
+				}
+
+				// Skip empty row
+				if ($rowaction == "insert" && $this->EmptyRow()) {
+
+					// No action required
+				// Validate form and insert/update/delete record
+
+				} elseif ($bGridUpdate) {
+					if ($rowaction == "delete") {
+						$this->CurrentFilter = $this->KeyFilter();
+						$bGridUpdate = $this->DeleteRows(); // Delete this row
+					} else if (!$this->ValidateForm()) {
+						$bGridUpdate = FALSE; // Form error, reset action
+						$this->setFailureMessage($gsFormError);
+					} else {
+						if ($rowaction == "insert") {
+							$bGridUpdate = $this->AddRow(); // Insert this row
+						} else {
+							if ($rowkey <> "") {
+								$this->SendEmail = FALSE; // Do not send email on update success
+								$bGridUpdate = $this->EditRow(); // Update this row
+							}
+						} // End update
+					}
+				}
+				if ($bGridUpdate) {
+					if ($sKey <> "") $sKey .= ", ";
+					$sKey .= $rowkey;
+				} else {
+					break;
+				}
+			}
+		}
+		if ($bGridUpdate) {
+			$conn->CommitTrans(); // Commit transaction
+
+			// Get new recordset
+			if ($rs = $conn->Execute($sSql)) {
+				$rsnew = $rs->GetRows();
+				$rs->Close();
+			}
+
+			// Call Grid_Updated event
+			$this->Grid_Updated($rsold, $rsnew);
+			if ($this->AuditTrailOnEdit) $this->WriteAuditTrailDummy($Language->Phrase("BatchUpdateSuccess")); // Batch update success
+			if ($this->getSuccessMessage() == "")
+				$this->setSuccessMessage($Language->Phrase("UpdateSuccess")); // Set up update success message
+			$this->ClearInlineMode(); // Clear inline edit mode
+		} else {
+			$conn->RollbackTrans(); // Rollback transaction
+			if ($this->AuditTrailOnEdit) $this->WriteAuditTrailDummy($Language->Phrase("BatchUpdateRollback")); // Batch update rollback
+			if ($this->getFailureMessage() == "")
+				$this->setFailureMessage($Language->Phrase("UpdateFailed")); // Set update failed message
+		}
+		return $bGridUpdate;
+	}
+
 	// Build filter for all keys
 	function BuildKeyFilter() {
 		global $objForm;
@@ -757,6 +1063,184 @@ class ct_daftarm_list extends ct_daftarm {
 				return FALSE;
 		}
 		return TRUE;
+	}
+
+	// Perform Grid Add
+	function GridInsert() {
+		global $Language, $objForm, $gsFormError;
+		$rowindex = 1;
+		$bGridInsert = FALSE;
+		$conn = &$this->Connection();
+
+		// Call Grid Inserting event
+		if (!$this->Grid_Inserting()) {
+			if ($this->getFailureMessage() == "") {
+				$this->setFailureMessage($Language->Phrase("GridAddCancelled")); // Set grid add cancelled message
+			}
+			return FALSE;
+		}
+
+		// Begin transaction
+		$conn->BeginTrans();
+
+		// Init key filter
+		$sWrkFilter = "";
+		$addcnt = 0;
+		if ($this->AuditTrailOnAdd) $this->WriteAuditTrailDummy($Language->Phrase("BatchInsertBegin")); // Batch insert begin
+		$sKey = "";
+
+		// Get row count
+		$objForm->Index = -1;
+		$rowcnt = strval($objForm->GetValue($this->FormKeyCountName));
+		if ($rowcnt == "" || !is_numeric($rowcnt))
+			$rowcnt = 0;
+
+		// Insert all rows
+		for ($rowindex = 1; $rowindex <= $rowcnt; $rowindex++) {
+
+			// Load current row values
+			$objForm->Index = $rowindex;
+			$rowaction = strval($objForm->GetValue($this->FormActionName));
+			if ($rowaction <> "" && $rowaction <> "insert")
+				continue; // Skip
+			$this->LoadFormValues(); // Get form values
+			if (!$this->EmptyRow()) {
+				$addcnt++;
+				$this->SendEmail = FALSE; // Do not send email on insert success
+
+				// Validate form
+				if (!$this->ValidateForm()) {
+					$bGridInsert = FALSE; // Form error, reset action
+					$this->setFailureMessage($gsFormError);
+				} else {
+					$bGridInsert = $this->AddRow($this->OldRecordset); // Insert this row
+				}
+				if ($bGridInsert) {
+					if ($sKey <> "") $sKey .= $GLOBALS["EW_COMPOSITE_KEY_SEPARATOR"];
+					$sKey .= $this->DaftarmID->CurrentValue;
+
+					// Add filter for this record
+					$sFilter = $this->KeyFilter();
+					if ($sWrkFilter <> "") $sWrkFilter .= " OR ";
+					$sWrkFilter .= $sFilter;
+				} else {
+					break;
+				}
+			}
+		}
+		if ($addcnt == 0) { // No record inserted
+			$this->setFailureMessage($Language->Phrase("NoAddRecord"));
+			$bGridInsert = FALSE;
+		}
+		if ($bGridInsert) {
+			$conn->CommitTrans(); // Commit transaction
+
+			// Get new recordset
+			$this->CurrentFilter = $sWrkFilter;
+			$sSql = $this->SQL();
+			if ($rs = $conn->Execute($sSql)) {
+				$rsnew = $rs->GetRows();
+				$rs->Close();
+			}
+
+			// Call Grid_Inserted event
+			$this->Grid_Inserted($rsnew);
+			if ($this->AuditTrailOnAdd) $this->WriteAuditTrailDummy($Language->Phrase("BatchInsertSuccess")); // Batch insert success
+			if ($this->getSuccessMessage() == "")
+				$this->setSuccessMessage($Language->Phrase("InsertSuccess")); // Set up insert success message
+			$this->ClearInlineMode(); // Clear grid add mode
+		} else {
+			$conn->RollbackTrans(); // Rollback transaction
+			if ($this->AuditTrailOnAdd) $this->WriteAuditTrailDummy($Language->Phrase("BatchInsertRollback")); // Batch insert rollback
+			if ($this->getFailureMessage() == "") {
+				$this->setFailureMessage($Language->Phrase("InsertFailed")); // Set insert failed message
+			}
+		}
+		return $bGridInsert;
+	}
+
+	// Check if empty row
+	function EmptyRow() {
+		global $objForm;
+		if ($objForm->HasValue("x__UserID") && $objForm->HasValue("o__UserID") && $this->_UserID->CurrentValue <> $this->_UserID->OldValue)
+			return FALSE;
+		if ($objForm->HasValue("x_TglJam") && $objForm->HasValue("o_TglJam") && $this->TglJam->CurrentValue <> $this->TglJam->OldValue)
+			return FALSE;
+		if (!ew_Empty($this->BuktiBayar->Upload->Value))
+			return FALSE;
+		if ($objForm->HasValue("x_JumlahBayar") && $objForm->HasValue("o_JumlahBayar") && $this->JumlahBayar->CurrentValue <> $this->JumlahBayar->OldValue)
+			return FALSE;
+		if ($objForm->HasValue("x_Acc") && $objForm->HasValue("o_Acc") && $this->Acc->CurrentValue <> $this->Acc->OldValue)
+			return FALSE;
+		return TRUE;
+	}
+
+	// Validate grid form
+	function ValidateGridForm() {
+		global $objForm;
+
+		// Get row count
+		$objForm->Index = -1;
+		$rowcnt = strval($objForm->GetValue($this->FormKeyCountName));
+		if ($rowcnt == "" || !is_numeric($rowcnt))
+			$rowcnt = 0;
+
+		// Validate all records
+		for ($rowindex = 1; $rowindex <= $rowcnt; $rowindex++) {
+
+			// Load current row values
+			$objForm->Index = $rowindex;
+			$rowaction = strval($objForm->GetValue($this->FormActionName));
+			if ($rowaction <> "delete" && $rowaction <> "insertdelete") {
+				$this->LoadFormValues(); // Get form values
+				if ($rowaction == "insert" && $this->EmptyRow()) {
+
+					// Ignore
+				} else if (!$this->ValidateForm()) {
+					return FALSE;
+				}
+			}
+		}
+		return TRUE;
+	}
+
+	// Get all form values of the grid
+	function GetGridFormValues() {
+		global $objForm;
+
+		// Get row count
+		$objForm->Index = -1;
+		$rowcnt = strval($objForm->GetValue($this->FormKeyCountName));
+		if ($rowcnt == "" || !is_numeric($rowcnt))
+			$rowcnt = 0;
+		$rows = array();
+
+		// Loop through all records
+		for ($rowindex = 1; $rowindex <= $rowcnt; $rowindex++) {
+
+			// Load current row values
+			$objForm->Index = $rowindex;
+			$rowaction = strval($objForm->GetValue($this->FormActionName));
+			if ($rowaction <> "delete" && $rowaction <> "insertdelete") {
+				$this->LoadFormValues(); // Get form values
+				if ($rowaction == "insert" && $this->EmptyRow()) {
+
+					// Ignore
+				} else {
+					$rows[] = $this->GetFieldValues("FormValue"); // Return row as array
+				}
+			}
+		}
+		return $rows; // Return as array of array
+	}
+
+	// Restore form values for current row
+	function RestoreCurrentRowFormValues($idx) {
+		global $objForm;
+
+		// Get row based on current index
+		$objForm->Index = $idx;
+		$this->LoadFormValues(); // Load form values
 	}
 
 	// Get list of filters
@@ -1045,6 +1529,7 @@ class ct_daftarm_list extends ct_daftarm {
 		if (@$_GET["order"] <> "") {
 			$this->CurrentOrder = ew_StripSlashes(@$_GET["order"]);
 			$this->CurrentOrderType = @$_GET["ordertype"];
+			$this->UpdateSort($this->_UserID, $bCtrl); // UserID
 			$this->UpdateSort($this->TglJam, $bCtrl); // TglJam
 			$this->UpdateSort($this->BuktiBayar, $bCtrl); // BuktiBayar
 			$this->UpdateSort($this->JumlahBayar, $bCtrl); // JumlahBayar
@@ -1081,6 +1566,7 @@ class ct_daftarm_list extends ct_daftarm {
 			if ($this->Command == "resetsort") {
 				$sOrderBy = "";
 				$this->setSessionOrderBy($sOrderBy);
+				$this->_UserID->setSort("");
 				$this->TglJam->setSort("");
 				$this->BuktiBayar->setSort("");
 				$this->JumlahBayar->setSort("");
@@ -1096,6 +1582,14 @@ class ct_daftarm_list extends ct_daftarm {
 	// Set up list options
 	function SetupListOptions() {
 		global $Security, $Language;
+
+		// "griddelete"
+		if ($this->AllowAddDeleteRow) {
+			$item = &$this->ListOptions->Add("griddelete");
+			$item->CssStyle = "white-space: nowrap;";
+			$item->OnLeft = TRUE;
+			$item->Visible = FALSE; // Default hidden
+		}
 
 		// Add group option item
 		$item = &$this->ListOptions->Add($this->ListOptions->GroupOptionName);
@@ -1189,9 +1683,66 @@ class ct_daftarm_list extends ct_daftarm {
 		global $Security, $Language, $objForm;
 		$this->ListOptions->LoadDefault();
 
+		// Set up row action and key
+		if (is_numeric($this->RowIndex) && $this->CurrentMode <> "view") {
+			$objForm->Index = $this->RowIndex;
+			$ActionName = str_replace("k_", "k" . $this->RowIndex . "_", $this->FormActionName);
+			$OldKeyName = str_replace("k_", "k" . $this->RowIndex . "_", $this->FormOldKeyName);
+			$KeyName = str_replace("k_", "k" . $this->RowIndex . "_", $this->FormKeyName);
+			$BlankRowName = str_replace("k_", "k" . $this->RowIndex . "_", $this->FormBlankRowName);
+			if ($this->RowAction <> "")
+				$this->MultiSelectKey .= "<input type=\"hidden\" name=\"" . $ActionName . "\" id=\"" . $ActionName . "\" value=\"" . $this->RowAction . "\">";
+			if ($this->RowAction == "delete") {
+				$rowkey = $objForm->GetValue($this->FormKeyName);
+				$this->SetupKeyValues($rowkey);
+			}
+			if ($this->RowAction == "insert" && $this->CurrentAction == "F" && $this->EmptyRow())
+				$this->MultiSelectKey .= "<input type=\"hidden\" name=\"" . $BlankRowName . "\" id=\"" . $BlankRowName . "\" value=\"1\">";
+		}
+
+		// "delete"
+		if ($this->AllowAddDeleteRow) {
+			if ($this->CurrentAction == "gridadd" || $this->CurrentAction == "gridedit") {
+				$option = &$this->ListOptions;
+				$option->UseButtonGroup = TRUE; // Use button group for grid delete button
+				$option->UseImageAndText = TRUE; // Use image and text for grid delete button
+				$oListOpt = &$option->Items["griddelete"];
+				if (!$Security->CanDelete() && is_numeric($this->RowIndex) && ($this->RowAction == "" || $this->RowAction == "edit")) { // Do not allow delete existing record
+					$oListOpt->Body = "&nbsp;";
+				} else {
+					$oListOpt->Body = "<a class=\"ewGridLink ewGridDelete\" title=\"" . ew_HtmlTitle($Language->Phrase("DeleteLink")) . "\" data-caption=\"" . ew_HtmlTitle($Language->Phrase("DeleteLink")) . "\" onclick=\"return ew_DeleteGridRow(this, " . $this->RowIndex . ");\">" . $Language->Phrase("DeleteLink") . "</a>";
+				}
+			}
+		}
+
 		// "sequence"
 		$oListOpt = &$this->ListOptions->Items["sequence"];
 		$oListOpt->Body = ew_FormatSeqNo($this->RecCnt);
+
+		// "copy"
+		$oListOpt = &$this->ListOptions->Items["copy"];
+		if (($this->CurrentAction == "add" || $this->CurrentAction == "copy") && $this->RowType == EW_ROWTYPE_ADD) { // Inline Add/Copy
+			$this->ListOptions->CustomItem = "copy"; // Show copy column only
+			$cancelurl = $this->AddMasterUrl($this->PageUrl() . "a=cancel");
+			$oListOpt->Body = "<div" . (($oListOpt->OnLeft) ? " style=\"text-align: right\"" : "") . ">" .
+				"<a class=\"ewGridLink ewInlineInsert\" title=\"" . ew_HtmlTitle($Language->Phrase("InsertLink")) . "\" data-caption=\"" . ew_HtmlTitle($Language->Phrase("InsertLink")) . "\" href=\"\" onclick=\"return ewForms(this).Submit('" . $this->PageName() . "');\">" . $Language->Phrase("InsertLink") . "</a>&nbsp;" .
+				"<a class=\"ewGridLink ewInlineCancel\" title=\"" . ew_HtmlTitle($Language->Phrase("CancelLink")) . "\" data-caption=\"" . ew_HtmlTitle($Language->Phrase("CancelLink")) . "\" href=\"" . $cancelurl . "\">" . $Language->Phrase("CancelLink") . "</a>" .
+				"<input type=\"hidden\" name=\"a_list\" id=\"a_list\" value=\"insert\"></div>";
+			return;
+		}
+
+		// "edit"
+		$oListOpt = &$this->ListOptions->Items["edit"];
+		if ($this->CurrentAction == "edit" && $this->RowType == EW_ROWTYPE_EDIT) { // Inline-Edit
+			$this->ListOptions->CustomItem = "edit"; // Show edit column only
+			$cancelurl = $this->AddMasterUrl($this->PageUrl() . "a=cancel");
+				$oListOpt->Body = "<div" . (($oListOpt->OnLeft) ? " style=\"text-align: right\"" : "") . ">" .
+					"<a class=\"ewGridLink ewInlineUpdate\" title=\"" . ew_HtmlTitle($Language->Phrase("UpdateLink")) . "\" data-caption=\"" . ew_HtmlTitle($Language->Phrase("UpdateLink")) . "\" href=\"\" onclick=\"return ewForms(this).Submit('" . ew_GetHashUrl($this->PageName(), $this->PageObjName . "_row_" . $this->RowCnt) . "');\">" . $Language->Phrase("UpdateLink") . "</a>&nbsp;" .
+					"<a class=\"ewGridLink ewInlineCancel\" title=\"" . ew_HtmlTitle($Language->Phrase("CancelLink")) . "\" data-caption=\"" . ew_HtmlTitle($Language->Phrase("CancelLink")) . "\" href=\"" . $cancelurl . "\">" . $Language->Phrase("CancelLink") . "</a>" .
+					"<input type=\"hidden\" name=\"a_list\" id=\"a_list\" value=\"update\"></div>";
+			$oListOpt->Body .= "<input type=\"hidden\" name=\"k" . $this->RowIndex . "_key\" id=\"k" . $this->RowIndex . "_key\" value=\"" . ew_HtmlEncode($this->DaftarmID->CurrentValue) . "\">";
+			return;
+		}
 
 		// "view"
 		$oListOpt = &$this->ListOptions->Items["view"];
@@ -1207,6 +1758,7 @@ class ct_daftarm_list extends ct_daftarm {
 		$editcaption = ew_HtmlTitle($Language->Phrase("EditLink"));
 		if ($Security->CanEdit()) {
 			$oListOpt->Body = "<a class=\"ewRowLink ewEdit\" title=\"" . ew_HtmlTitle($Language->Phrase("EditLink")) . "\" data-caption=\"" . ew_HtmlTitle($Language->Phrase("EditLink")) . "\" href=\"" . ew_HtmlEncode($this->EditUrl) . "\">" . $Language->Phrase("EditLink") . "</a>";
+			$oListOpt->Body .= "<a class=\"ewRowLink ewInlineEdit\" title=\"" . ew_HtmlTitle($Language->Phrase("InlineEditLink")) . "\" data-caption=\"" . ew_HtmlTitle($Language->Phrase("InlineEditLink")) . "\" href=\"" . ew_HtmlEncode(ew_GetHashUrl($this->InlineEditUrl, $this->PageObjName . "_row_" . $this->RowCnt)) . "\">" . $Language->Phrase("InlineEditLink") . "</a>";
 		} else {
 			$oListOpt->Body = "";
 		}
@@ -1216,6 +1768,7 @@ class ct_daftarm_list extends ct_daftarm {
 		$copycaption = ew_HtmlTitle($Language->Phrase("CopyLink"));
 		if ($Security->CanAdd()) {
 			$oListOpt->Body = "<a class=\"ewRowLink ewCopy\" title=\"" . $copycaption . "\" data-caption=\"" . $copycaption . "\" href=\"" . ew_HtmlEncode($this->CopyUrl) . "\">" . $Language->Phrase("CopyLink") . "</a>";
+			$oListOpt->Body .= "<a class=\"ewRowLink ewInlineCopy\" title=\"" . ew_HtmlTitle($Language->Phrase("InlineCopyLink")) . "\" data-caption=\"" . ew_HtmlTitle($Language->Phrase("InlineCopyLink")) . "\" href=\"" . ew_HtmlEncode($this->InlineCopyUrl) . "\">" . $Language->Phrase("InlineCopyLink") . "</a>";
 		} else {
 			$oListOpt->Body = "";
 		}
@@ -1308,6 +1861,9 @@ class ct_daftarm_list extends ct_daftarm {
 		// "checkbox"
 		$oListOpt = &$this->ListOptions->Items["checkbox"];
 		$oListOpt->Body = "<input type=\"checkbox\" name=\"key_m[]\" value=\"" . ew_HtmlEncode($this->DaftarmID->CurrentValue) . "\" onclick='ew_ClickMultiCheckbox(event);'>";
+		if ($this->CurrentAction == "gridedit" && is_numeric($this->RowIndex)) {
+			$this->MultiSelectKey .= "<input type=\"hidden\" name=\"" . $KeyName . "\" id=\"" . $KeyName . "\" value=\"" . $this->DaftarmID->CurrentValue . "\">";
+		}
 		$this->RenderListOptionsExt();
 
 		// Call ListOptions_Rendered event
@@ -1325,6 +1881,14 @@ class ct_daftarm_list extends ct_daftarm {
 		$addcaption = ew_HtmlTitle($Language->Phrase("AddLink"));
 		$item->Body = "<a class=\"ewAddEdit ewAdd\" title=\"" . $addcaption . "\" data-caption=\"" . $addcaption . "\" href=\"" . ew_HtmlEncode($this->AddUrl) . "\">" . $Language->Phrase("AddLink") . "</a>";
 		$item->Visible = ($this->AddUrl <> "" && $Security->CanAdd());
+
+		// Inline Add
+		$item = &$option->Add("inlineadd");
+		$item->Body = "<a class=\"ewAddEdit ewInlineAdd\" title=\"" . ew_HtmlTitle($Language->Phrase("InlineAddLink")) . "\" data-caption=\"" . ew_HtmlTitle($Language->Phrase("InlineAddLink")) . "\" href=\"" . ew_HtmlEncode($this->InlineAddUrl) . "\">" .$Language->Phrase("InlineAddLink") . "</a>";
+		$item->Visible = ($this->InlineAddUrl <> "" && $Security->CanAdd());
+		$item = &$option->Add("gridadd");
+		$item->Body = "<a class=\"ewAddEdit ewGridAdd\" title=\"" . ew_HtmlTitle($Language->Phrase("GridAddLink")) . "\" data-caption=\"" . ew_HtmlTitle($Language->Phrase("GridAddLink")) . "\" href=\"" . ew_HtmlEncode($this->GridAddUrl) . "\">" . $Language->Phrase("GridAddLink") . "</a>";
+		$item->Visible = ($this->GridAddUrl <> "" && $Security->CanAdd());
 		$option = $options["detail"];
 		$DetailTableLink = "";
 		$item = &$option->Add("detailadd_t_daftard");
@@ -1352,6 +1916,12 @@ class ct_daftarm_list extends ct_daftarm {
 					$item->Visible = FALSE;
 			}
 		}
+
+		// Add grid edit
+		$option = $options["addedit"];
+		$item = &$option->Add("gridedit");
+		$item->Body = "<a class=\"ewAddEdit ewGridEdit\" title=\"" . ew_HtmlTitle($Language->Phrase("GridEditLink")) . "\" data-caption=\"" . ew_HtmlTitle($Language->Phrase("GridEditLink")) . "\" href=\"" . ew_HtmlEncode($this->GridEditUrl) . "\">" . $Language->Phrase("GridEditLink") . "</a>";
+		$item->Visible = ($this->GridEditUrl <> "" && $Security->CanEdit());
 		$option = $options["action"];
 
 		// Add multi delete
@@ -1394,6 +1964,7 @@ class ct_daftarm_list extends ct_daftarm {
 	function RenderOtherOptions() {
 		global $Language, $Security;
 		$options = &$this->OtherOptions;
+		if ($this->CurrentAction <> "gridadd" && $this->CurrentAction <> "gridedit") { // Not grid add/edit mode
 			$option = &$options["action"];
 
 			// Set up list action buttons
@@ -1415,6 +1986,56 @@ class ct_daftarm_list extends ct_daftarm {
 				$option = &$options["action"];
 				$option->HideAllOptions();
 			}
+		} else { // Grid add/edit mode
+
+			// Hide all options first
+			foreach ($options as &$option)
+				$option->HideAllOptions();
+			if ($this->CurrentAction == "gridadd") {
+				if ($this->AllowAddDeleteRow) {
+
+					// Add add blank row
+					$option = &$options["addedit"];
+					$option->UseDropDownButton = FALSE;
+					$option->UseImageAndText = TRUE;
+					$item = &$option->Add("addblankrow");
+					$item->Body = "<a class=\"ewAddEdit ewAddBlankRow\" title=\"" . ew_HtmlTitle($Language->Phrase("AddBlankRow")) . "\" data-caption=\"" . ew_HtmlTitle($Language->Phrase("AddBlankRow")) . "\" href=\"javascript:void(0);\" onclick=\"ew_AddGridRow(this);\">" . $Language->Phrase("AddBlankRow") . "</a>";
+					$item->Visible = $Security->CanAdd();
+				}
+				$option = &$options["action"];
+				$option->UseDropDownButton = FALSE;
+				$option->UseImageAndText = TRUE;
+
+				// Add grid insert
+				$item = &$option->Add("gridinsert");
+				$item->Body = "<a class=\"ewAction ewGridInsert\" title=\"" . ew_HtmlTitle($Language->Phrase("GridInsertLink")) . "\" data-caption=\"" . ew_HtmlTitle($Language->Phrase("GridInsertLink")) . "\" href=\"\" onclick=\"return ewForms(this).Submit('" . $this->PageName() . "');\">" . $Language->Phrase("GridInsertLink") . "</a>";
+
+				// Add grid cancel
+				$item = &$option->Add("gridcancel");
+				$cancelurl = $this->AddMasterUrl($this->PageUrl() . "a=cancel");
+				$item->Body = "<a class=\"ewAction ewGridCancel\" title=\"" . ew_HtmlTitle($Language->Phrase("GridCancelLink")) . "\" data-caption=\"" . ew_HtmlTitle($Language->Phrase("GridCancelLink")) . "\" href=\"" . $cancelurl . "\">" . $Language->Phrase("GridCancelLink") . "</a>";
+			}
+			if ($this->CurrentAction == "gridedit") {
+				if ($this->AllowAddDeleteRow) {
+
+					// Add add blank row
+					$option = &$options["addedit"];
+					$option->UseDropDownButton = FALSE;
+					$option->UseImageAndText = TRUE;
+					$item = &$option->Add("addblankrow");
+					$item->Body = "<a class=\"ewAddEdit ewAddBlankRow\" title=\"" . ew_HtmlTitle($Language->Phrase("AddBlankRow")) . "\" data-caption=\"" . ew_HtmlTitle($Language->Phrase("AddBlankRow")) . "\" href=\"javascript:void(0);\" onclick=\"ew_AddGridRow(this);\">" . $Language->Phrase("AddBlankRow") . "</a>";
+					$item->Visible = $Security->CanAdd();
+				}
+				$option = &$options["action"];
+				$option->UseDropDownButton = FALSE;
+				$option->UseImageAndText = TRUE;
+					$item = &$option->Add("gridsave");
+					$item->Body = "<a class=\"ewAction ewGridSave\" title=\"" . ew_HtmlTitle($Language->Phrase("GridSaveLink")) . "\" data-caption=\"" . ew_HtmlTitle($Language->Phrase("GridSaveLink")) . "\" href=\"\" onclick=\"return ewForms(this).Submit('" . $this->PageName() . "');\">" . $Language->Phrase("GridSaveLink") . "</a>";
+					$item = &$option->Add("gridcancel");
+					$cancelurl = $this->AddMasterUrl($this->PageUrl() . "a=cancel");
+					$item->Body = "<a class=\"ewAction ewGridCancel\" title=\"" . ew_HtmlTitle($Language->Phrase("GridCancelLink")) . "\" data-caption=\"" . ew_HtmlTitle($Language->Phrase("GridCancelLink")) . "\" href=\"" . $cancelurl . "\">" . $Language->Phrase("GridCancelLink") . "</a>";
+			}
+		}
 	}
 
 	// Process list action
@@ -1579,11 +2200,74 @@ class ct_daftarm_list extends ct_daftarm {
 		}
 	}
 
+	// Get upload files
+	function GetUploadFiles() {
+		global $objForm, $Language;
+
+		// Get upload data
+		$this->BuktiBayar->Upload->Index = $objForm->Index;
+		$this->BuktiBayar->Upload->UploadFile();
+		$this->BuktiBayar->CurrentValue = $this->BuktiBayar->Upload->FileName;
+	}
+
+	// Load default values
+	function LoadDefaultValues() {
+		$this->_UserID->CurrentValue = 0;
+		$this->_UserID->OldValue = $this->_UserID->CurrentValue;
+		$this->TglJam->CurrentValue = "1970-01-01 00:00:00";
+		$this->TglJam->OldValue = $this->TglJam->CurrentValue;
+		$this->BuktiBayar->Upload->DbValue = NULL;
+		$this->BuktiBayar->OldValue = $this->BuktiBayar->Upload->DbValue;
+		$this->JumlahBayar->CurrentValue = 0.00;
+		$this->JumlahBayar->OldValue = $this->JumlahBayar->CurrentValue;
+		$this->Acc->CurrentValue = 0;
+		$this->Acc->OldValue = $this->Acc->CurrentValue;
+	}
+
 	// Load basic search values
 	function LoadBasicSearchValues() {
 		$this->BasicSearch->Keyword = @$_GET[EW_TABLE_BASIC_SEARCH];
 		if ($this->BasicSearch->Keyword <> "") $this->Command = "search";
 		$this->BasicSearch->Type = @$_GET[EW_TABLE_BASIC_SEARCH_TYPE];
+	}
+
+	// Load form values
+	function LoadFormValues() {
+
+		// Load from form
+		global $objForm;
+		$this->GetUploadFiles(); // Get upload files
+		if (!$this->_UserID->FldIsDetailKey) {
+			$this->_UserID->setFormValue($objForm->GetValue("x__UserID"));
+		}
+		$this->_UserID->setOldValue($objForm->GetValue("o__UserID"));
+		if (!$this->TglJam->FldIsDetailKey) {
+			$this->TglJam->setFormValue($objForm->GetValue("x_TglJam"));
+			$this->TglJam->CurrentValue = ew_UnFormatDateTime($this->TglJam->CurrentValue, 0);
+		}
+		$this->TglJam->setOldValue($objForm->GetValue("o_TglJam"));
+		if (!$this->JumlahBayar->FldIsDetailKey) {
+			$this->JumlahBayar->setFormValue($objForm->GetValue("x_JumlahBayar"));
+		}
+		$this->JumlahBayar->setOldValue($objForm->GetValue("o_JumlahBayar"));
+		if (!$this->Acc->FldIsDetailKey) {
+			$this->Acc->setFormValue($objForm->GetValue("x_Acc"));
+		}
+		$this->Acc->setOldValue($objForm->GetValue("o_Acc"));
+		if (!$this->DaftarmID->FldIsDetailKey && $this->CurrentAction <> "gridadd" && $this->CurrentAction <> "add")
+			$this->DaftarmID->setFormValue($objForm->GetValue("x_DaftarmID"));
+	}
+
+	// Restore form values
+	function RestoreFormValues() {
+		global $objForm;
+		if ($this->CurrentAction <> "gridadd" && $this->CurrentAction <> "add")
+			$this->DaftarmID->CurrentValue = $this->DaftarmID->FormValue;
+		$this->_UserID->CurrentValue = $this->_UserID->FormValue;
+		$this->TglJam->CurrentValue = $this->TglJam->FormValue;
+		$this->TglJam->CurrentValue = ew_UnFormatDateTime($this->TglJam->CurrentValue, 0);
+		$this->JumlahBayar->CurrentValue = $this->JumlahBayar->FormValue;
+		$this->Acc->CurrentValue = $this->Acc->FormValue;
 	}
 
 	// Load recordset
@@ -1721,9 +2405,9 @@ class ct_daftarm_list extends ct_daftarm {
 		// UserID
 		if (strval($this->_UserID->CurrentValue) <> "") {
 			$sFilterWrk = "`UserID`" . ew_SearchString("=", $this->_UserID->CurrentValue, EW_DATATYPE_NUMBER, "");
-		$sSqlWrk = "SELECT `UserID`, `Nama` AS `DispFld`, '' AS `Disp2Fld`, '' AS `Disp3Fld`, '' AS `Disp4Fld` FROM `t_user`";
+		$sSqlWrk = "SELECT `UserID`, `Nama` AS `DispFld`, `NIM` AS `Disp2Fld`, '' AS `Disp3Fld`, '' AS `Disp4Fld` FROM `t_user`";
 		$sWhereWrk = "";
-		$this->_UserID->LookupFilters = array("dx1" => '`Nama`');
+		$this->_UserID->LookupFilters = array("dx1" => '`Nama`', "dx2" => '`NIM`');
 		ew_AddFilter($sWhereWrk, $sFilterWrk);
 		$this->Lookup_Selecting($this->_UserID, $sWhereWrk); // Call Lookup selecting
 		if ($sWhereWrk <> "") $sSqlWrk .= " WHERE " . $sWhereWrk;
@@ -1731,6 +2415,7 @@ class ct_daftarm_list extends ct_daftarm {
 			if ($rswrk && !$rswrk->EOF) { // Lookup values found
 				$arwrk = array();
 				$arwrk[1] = $rswrk->fields('DispFld');
+				$arwrk[2] = $rswrk->fields('Disp2Fld');
 				$this->_UserID->ViewValue = $this->_UserID->DisplayValue($arwrk);
 				$rswrk->Close();
 			} else {
@@ -1748,6 +2433,9 @@ class ct_daftarm_list extends ct_daftarm {
 
 		// BuktiBayar
 		if (!ew_Empty($this->BuktiBayar->Upload->DbValue)) {
+			$this->BuktiBayar->ImageWidth = EW_THUMBNAIL_DEFAULT_WIDTH;
+			$this->BuktiBayar->ImageHeight = EW_THUMBNAIL_DEFAULT_HEIGHT;
+			$this->BuktiBayar->ImageAlt = $this->BuktiBayar->FldAlt();
 			$this->BuktiBayar->ViewValue = $this->BuktiBayar->Upload->DbValue;
 		} else {
 			$this->BuktiBayar->ViewValue = "";
@@ -1762,17 +2450,16 @@ class ct_daftarm_list extends ct_daftarm {
 
 		// Acc
 		if (strval($this->Acc->CurrentValue) <> "") {
-			$this->Acc->ViewValue = "";
-			$arwrk = explode(",", strval($this->Acc->CurrentValue));
-			$cnt = count($arwrk);
-			for ($ari = 0; $ari < $cnt; $ari++) {
-				$this->Acc->ViewValue .= $this->Acc->OptionCaption(trim($arwrk[$ari]));
-				if ($ari < $cnt-1) $this->Acc->ViewValue .= ew_ViewOptionSeparator($ari);
-			}
+			$this->Acc->ViewValue = $this->Acc->OptionCaption($this->Acc->CurrentValue);
 		} else {
 			$this->Acc->ViewValue = NULL;
 		}
 		$this->Acc->ViewCustomAttributes = "";
+
+			// UserID
+			$this->_UserID->LinkCustomAttributes = "";
+			$this->_UserID->HrefValue = "";
+			$this->_UserID->TooltipValue = "";
 
 			// TglJam
 			$this->TglJam->LinkCustomAttributes = "";
@@ -1781,9 +2468,21 @@ class ct_daftarm_list extends ct_daftarm {
 
 			// BuktiBayar
 			$this->BuktiBayar->LinkCustomAttributes = "";
-			$this->BuktiBayar->HrefValue = "";
+			if (!ew_Empty($this->BuktiBayar->Upload->DbValue)) {
+				$this->BuktiBayar->HrefValue = ew_GetFileUploadUrl($this->BuktiBayar, $this->BuktiBayar->Upload->DbValue); // Add prefix/suffix
+				$this->BuktiBayar->LinkAttrs["target"] = ""; // Add target
+				if ($this->Export <> "") $this->BuktiBayar->HrefValue = ew_ConvertFullUrl($this->BuktiBayar->HrefValue);
+			} else {
+				$this->BuktiBayar->HrefValue = "";
+			}
 			$this->BuktiBayar->HrefValue2 = $this->BuktiBayar->UploadPath . $this->BuktiBayar->Upload->DbValue;
 			$this->BuktiBayar->TooltipValue = "";
+			if ($this->BuktiBayar->UseColorbox) {
+				if (ew_Empty($this->BuktiBayar->TooltipValue))
+					$this->BuktiBayar->LinkAttrs["title"] = $Language->Phrase("ViewImageGallery");
+				$this->BuktiBayar->LinkAttrs["data-rel"] = "t_daftarm_x" . $this->RowCnt . "_BuktiBayar";
+				ew_AppendClass($this->BuktiBayar->LinkAttrs["class"], "ewLightbox");
+			}
 
 			// JumlahBayar
 			$this->JumlahBayar->LinkCustomAttributes = "";
@@ -1794,11 +2493,483 @@ class ct_daftarm_list extends ct_daftarm {
 			$this->Acc->LinkCustomAttributes = "";
 			$this->Acc->HrefValue = "";
 			$this->Acc->TooltipValue = "";
+		} elseif ($this->RowType == EW_ROWTYPE_ADD) { // Add row
+
+			// UserID
+			$this->_UserID->EditCustomAttributes = "";
+			if (trim(strval($this->_UserID->CurrentValue)) == "") {
+				$sFilterWrk = "0=1";
+			} else {
+				$sFilterWrk = "`UserID`" . ew_SearchString("=", $this->_UserID->CurrentValue, EW_DATATYPE_NUMBER, "");
+			}
+			$sSqlWrk = "SELECT `UserID`, `Nama` AS `DispFld`, `NIM` AS `Disp2Fld`, '' AS `Disp3Fld`, '' AS `Disp4Fld`, '' AS `SelectFilterFld`, '' AS `SelectFilterFld2`, '' AS `SelectFilterFld3`, '' AS `SelectFilterFld4` FROM `t_user`";
+			$sWhereWrk = "";
+			$this->_UserID->LookupFilters = array("dx1" => '`Nama`', "dx2" => '`NIM`');
+			ew_AddFilter($sWhereWrk, $sFilterWrk);
+			if (!$GLOBALS["t_daftarm"]->UserIDAllow($GLOBALS["t_daftarm"]->CurrentAction)) $sWhereWrk = $GLOBALS["t_user"]->AddUserIDFilter($sWhereWrk);
+			$this->Lookup_Selecting($this->_UserID, $sWhereWrk); // Call Lookup selecting
+			if ($sWhereWrk <> "") $sSqlWrk .= " WHERE " . $sWhereWrk;
+			$rswrk = Conn()->Execute($sSqlWrk);
+			if ($rswrk && !$rswrk->EOF) { // Lookup values found
+				$arwrk = array();
+				$arwrk[1] = ew_HtmlEncode($rswrk->fields('DispFld'));
+				$arwrk[2] = ew_HtmlEncode($rswrk->fields('Disp2Fld'));
+				$this->_UserID->ViewValue = $this->_UserID->DisplayValue($arwrk);
+			} else {
+				$this->_UserID->ViewValue = $Language->Phrase("PleaseSelect");
+			}
+			$arwrk = ($rswrk) ? $rswrk->GetRows() : array();
+			if ($rswrk) $rswrk->Close();
+			$this->_UserID->EditValue = $arwrk;
+
+			// TglJam
+			$this->TglJam->EditAttrs["class"] = "form-control";
+			$this->TglJam->EditCustomAttributes = "";
+			$this->TglJam->EditValue = ew_HtmlEncode(ew_FormatDateTime($this->TglJam->CurrentValue, 8));
+			$this->TglJam->PlaceHolder = ew_RemoveHtml($this->TglJam->FldCaption());
+
+			// BuktiBayar
+			$this->BuktiBayar->EditAttrs["class"] = "form-control";
+			$this->BuktiBayar->EditCustomAttributes = "";
+			if (!ew_Empty($this->BuktiBayar->Upload->DbValue)) {
+				$this->BuktiBayar->ImageWidth = EW_THUMBNAIL_DEFAULT_WIDTH;
+				$this->BuktiBayar->ImageHeight = EW_THUMBNAIL_DEFAULT_HEIGHT;
+				$this->BuktiBayar->ImageAlt = $this->BuktiBayar->FldAlt();
+				$this->BuktiBayar->EditValue = $this->BuktiBayar->Upload->DbValue;
+			} else {
+				$this->BuktiBayar->EditValue = "";
+			}
+			if (!ew_Empty($this->BuktiBayar->CurrentValue))
+				$this->BuktiBayar->Upload->FileName = $this->BuktiBayar->CurrentValue;
+			if (is_numeric($this->RowIndex) && !$this->EventCancelled) ew_RenderUploadField($this->BuktiBayar, $this->RowIndex);
+
+			// JumlahBayar
+			$this->JumlahBayar->EditAttrs["class"] = "form-control";
+			$this->JumlahBayar->EditCustomAttributes = "";
+			$this->JumlahBayar->EditValue = ew_HtmlEncode($this->JumlahBayar->CurrentValue);
+			$this->JumlahBayar->PlaceHolder = ew_RemoveHtml($this->JumlahBayar->FldCaption());
+			if (strval($this->JumlahBayar->EditValue) <> "" && is_numeric($this->JumlahBayar->EditValue)) {
+			$this->JumlahBayar->EditValue = ew_FormatNumber($this->JumlahBayar->EditValue, -2, -2, -2, -2);
+			$this->JumlahBayar->OldValue = $this->JumlahBayar->EditValue;
+			}
+
+			// Acc
+			$this->Acc->EditCustomAttributes = "";
+			$this->Acc->EditValue = $this->Acc->Options(FALSE);
+
+			// Add refer script
+			// UserID
+
+			$this->_UserID->LinkCustomAttributes = "";
+			$this->_UserID->HrefValue = "";
+
+			// TglJam
+			$this->TglJam->LinkCustomAttributes = "";
+			$this->TglJam->HrefValue = "";
+
+			// BuktiBayar
+			$this->BuktiBayar->LinkCustomAttributes = "";
+			if (!ew_Empty($this->BuktiBayar->Upload->DbValue)) {
+				$this->BuktiBayar->HrefValue = ew_GetFileUploadUrl($this->BuktiBayar, $this->BuktiBayar->Upload->DbValue); // Add prefix/suffix
+				$this->BuktiBayar->LinkAttrs["target"] = ""; // Add target
+				if ($this->Export <> "") $this->BuktiBayar->HrefValue = ew_ConvertFullUrl($this->BuktiBayar->HrefValue);
+			} else {
+				$this->BuktiBayar->HrefValue = "";
+			}
+			$this->BuktiBayar->HrefValue2 = $this->BuktiBayar->UploadPath . $this->BuktiBayar->Upload->DbValue;
+
+			// JumlahBayar
+			$this->JumlahBayar->LinkCustomAttributes = "";
+			$this->JumlahBayar->HrefValue = "";
+
+			// Acc
+			$this->Acc->LinkCustomAttributes = "";
+			$this->Acc->HrefValue = "";
+		} elseif ($this->RowType == EW_ROWTYPE_EDIT) { // Edit row
+
+			// UserID
+			$this->_UserID->EditCustomAttributes = "";
+			if (trim(strval($this->_UserID->CurrentValue)) == "") {
+				$sFilterWrk = "0=1";
+			} else {
+				$sFilterWrk = "`UserID`" . ew_SearchString("=", $this->_UserID->CurrentValue, EW_DATATYPE_NUMBER, "");
+			}
+			$sSqlWrk = "SELECT `UserID`, `Nama` AS `DispFld`, `NIM` AS `Disp2Fld`, '' AS `Disp3Fld`, '' AS `Disp4Fld`, '' AS `SelectFilterFld`, '' AS `SelectFilterFld2`, '' AS `SelectFilterFld3`, '' AS `SelectFilterFld4` FROM `t_user`";
+			$sWhereWrk = "";
+			$this->_UserID->LookupFilters = array("dx1" => '`Nama`', "dx2" => '`NIM`');
+			ew_AddFilter($sWhereWrk, $sFilterWrk);
+			if (!$GLOBALS["t_daftarm"]->UserIDAllow($GLOBALS["t_daftarm"]->CurrentAction)) $sWhereWrk = $GLOBALS["t_user"]->AddUserIDFilter($sWhereWrk);
+			$this->Lookup_Selecting($this->_UserID, $sWhereWrk); // Call Lookup selecting
+			if ($sWhereWrk <> "") $sSqlWrk .= " WHERE " . $sWhereWrk;
+			$rswrk = Conn()->Execute($sSqlWrk);
+			if ($rswrk && !$rswrk->EOF) { // Lookup values found
+				$arwrk = array();
+				$arwrk[1] = ew_HtmlEncode($rswrk->fields('DispFld'));
+				$arwrk[2] = ew_HtmlEncode($rswrk->fields('Disp2Fld'));
+				$this->_UserID->ViewValue = $this->_UserID->DisplayValue($arwrk);
+			} else {
+				$this->_UserID->ViewValue = $Language->Phrase("PleaseSelect");
+			}
+			$arwrk = ($rswrk) ? $rswrk->GetRows() : array();
+			if ($rswrk) $rswrk->Close();
+			$this->_UserID->EditValue = $arwrk;
+
+			// TglJam
+			$this->TglJam->EditAttrs["class"] = "form-control";
+			$this->TglJam->EditCustomAttributes = "";
+			$this->TglJam->EditValue = ew_HtmlEncode(ew_FormatDateTime($this->TglJam->CurrentValue, 8));
+			$this->TglJam->PlaceHolder = ew_RemoveHtml($this->TglJam->FldCaption());
+
+			// BuktiBayar
+			$this->BuktiBayar->EditAttrs["class"] = "form-control";
+			$this->BuktiBayar->EditCustomAttributes = "";
+			if (!ew_Empty($this->BuktiBayar->Upload->DbValue)) {
+				$this->BuktiBayar->ImageWidth = EW_THUMBNAIL_DEFAULT_WIDTH;
+				$this->BuktiBayar->ImageHeight = EW_THUMBNAIL_DEFAULT_HEIGHT;
+				$this->BuktiBayar->ImageAlt = $this->BuktiBayar->FldAlt();
+				$this->BuktiBayar->EditValue = $this->BuktiBayar->Upload->DbValue;
+			} else {
+				$this->BuktiBayar->EditValue = "";
+			}
+			if (!ew_Empty($this->BuktiBayar->CurrentValue))
+				$this->BuktiBayar->Upload->FileName = $this->BuktiBayar->CurrentValue;
+			if (is_numeric($this->RowIndex) && !$this->EventCancelled) ew_RenderUploadField($this->BuktiBayar, $this->RowIndex);
+
+			// JumlahBayar
+			$this->JumlahBayar->EditAttrs["class"] = "form-control";
+			$this->JumlahBayar->EditCustomAttributes = "";
+			$this->JumlahBayar->EditValue = ew_HtmlEncode($this->JumlahBayar->CurrentValue);
+			$this->JumlahBayar->PlaceHolder = ew_RemoveHtml($this->JumlahBayar->FldCaption());
+			if (strval($this->JumlahBayar->EditValue) <> "" && is_numeric($this->JumlahBayar->EditValue)) {
+			$this->JumlahBayar->EditValue = ew_FormatNumber($this->JumlahBayar->EditValue, -2, -2, -2, -2);
+			$this->JumlahBayar->OldValue = $this->JumlahBayar->EditValue;
+			}
+
+			// Acc
+			$this->Acc->EditCustomAttributes = "";
+			$this->Acc->EditValue = $this->Acc->Options(FALSE);
+
+			// Edit refer script
+			// UserID
+
+			$this->_UserID->LinkCustomAttributes = "";
+			$this->_UserID->HrefValue = "";
+
+			// TglJam
+			$this->TglJam->LinkCustomAttributes = "";
+			$this->TglJam->HrefValue = "";
+
+			// BuktiBayar
+			$this->BuktiBayar->LinkCustomAttributes = "";
+			if (!ew_Empty($this->BuktiBayar->Upload->DbValue)) {
+				$this->BuktiBayar->HrefValue = ew_GetFileUploadUrl($this->BuktiBayar, $this->BuktiBayar->Upload->DbValue); // Add prefix/suffix
+				$this->BuktiBayar->LinkAttrs["target"] = ""; // Add target
+				if ($this->Export <> "") $this->BuktiBayar->HrefValue = ew_ConvertFullUrl($this->BuktiBayar->HrefValue);
+			} else {
+				$this->BuktiBayar->HrefValue = "";
+			}
+			$this->BuktiBayar->HrefValue2 = $this->BuktiBayar->UploadPath . $this->BuktiBayar->Upload->DbValue;
+
+			// JumlahBayar
+			$this->JumlahBayar->LinkCustomAttributes = "";
+			$this->JumlahBayar->HrefValue = "";
+
+			// Acc
+			$this->Acc->LinkCustomAttributes = "";
+			$this->Acc->HrefValue = "";
+		}
+		if ($this->RowType == EW_ROWTYPE_ADD ||
+			$this->RowType == EW_ROWTYPE_EDIT ||
+			$this->RowType == EW_ROWTYPE_SEARCH) { // Add / Edit / Search row
+			$this->SetupFieldTitles();
 		}
 
 		// Call Row Rendered event
 		if ($this->RowType <> EW_ROWTYPE_AGGREGATEINIT)
 			$this->Row_Rendered();
+	}
+
+	// Validate form
+	function ValidateForm() {
+		global $Language, $gsFormError;
+
+		// Initialize form error message
+		$gsFormError = "";
+
+		// Check if validation required
+		if (!EW_SERVER_VALIDATE)
+			return ($gsFormError == "");
+		if (!ew_CheckDateDef($this->TglJam->FormValue)) {
+			ew_AddMessage($gsFormError, $this->TglJam->FldErrMsg());
+		}
+		if (!ew_CheckNumber($this->JumlahBayar->FormValue)) {
+			ew_AddMessage($gsFormError, $this->JumlahBayar->FldErrMsg());
+		}
+
+		// Return validate result
+		$ValidateForm = ($gsFormError == "");
+
+		// Call Form_CustomValidate event
+		$sFormCustomError = "";
+		$ValidateForm = $ValidateForm && $this->Form_CustomValidate($sFormCustomError);
+		if ($sFormCustomError <> "") {
+			ew_AddMessage($gsFormError, $sFormCustomError);
+		}
+		return $ValidateForm;
+	}
+
+	//
+	// Delete records based on current filter
+	//
+	function DeleteRows() {
+		global $Language, $Security;
+		if (!$Security->CanDelete()) {
+			$this->setFailureMessage($Language->Phrase("NoDeletePermission")); // No delete permission
+			return FALSE;
+		}
+		$DeleteRows = TRUE;
+		$sSql = $this->SQL();
+		$conn = &$this->Connection();
+		$conn->raiseErrorFn = $GLOBALS["EW_ERROR_FN"];
+		$rs = $conn->Execute($sSql);
+		$conn->raiseErrorFn = '';
+		if ($rs === FALSE) {
+			return FALSE;
+		} elseif ($rs->EOF) {
+			$this->setFailureMessage($Language->Phrase("NoRecord")); // No record found
+			$rs->Close();
+			return FALSE;
+
+		//} else {
+		//	$this->LoadRowValues($rs); // Load row values
+
+		}
+		$rows = ($rs) ? $rs->GetRows() : array();
+		if ($this->AuditTrailOnDelete) $this->WriteAuditTrailDummy($Language->Phrase("BatchDeleteBegin")); // Batch delete begin
+
+		// Clone old rows
+		$rsold = $rows;
+		if ($rs)
+			$rs->Close();
+
+		// Call row deleting event
+		if ($DeleteRows) {
+			foreach ($rsold as $row) {
+				$DeleteRows = $this->Row_Deleting($row);
+				if (!$DeleteRows) break;
+			}
+		}
+		if ($DeleteRows) {
+			$sKey = "";
+			foreach ($rsold as $row) {
+				$sThisKey = "";
+				if ($sThisKey <> "") $sThisKey .= $GLOBALS["EW_COMPOSITE_KEY_SEPARATOR"];
+				$sThisKey .= $row['DaftarmID'];
+				$conn->raiseErrorFn = $GLOBALS["EW_ERROR_FN"];
+				$DeleteRows = $this->Delete($row); // Delete
+				$conn->raiseErrorFn = '';
+				if ($DeleteRows === FALSE)
+					break;
+				if ($sKey <> "") $sKey .= ", ";
+				$sKey .= $sThisKey;
+			}
+		} else {
+
+			// Set up error message
+			if ($this->getSuccessMessage() <> "" || $this->getFailureMessage() <> "") {
+
+				// Use the message, do nothing
+			} elseif ($this->CancelMessage <> "") {
+				$this->setFailureMessage($this->CancelMessage);
+				$this->CancelMessage = "";
+			} else {
+				$this->setFailureMessage($Language->Phrase("DeleteCancelled"));
+			}
+		}
+		if ($DeleteRows) {
+			if ($this->AuditTrailOnDelete) $this->WriteAuditTrailDummy($Language->Phrase("BatchDeleteSuccess")); // Batch delete success
+		} else {
+		}
+
+		// Call Row Deleted event
+		if ($DeleteRows) {
+			foreach ($rsold as $row) {
+				$this->Row_Deleted($row);
+			}
+		}
+		return $DeleteRows;
+	}
+
+	// Update record based on key values
+	function EditRow() {
+		global $Security, $Language;
+		$sFilter = $this->KeyFilter();
+		$sFilter = $this->ApplyUserIDFilters($sFilter);
+		$conn = &$this->Connection();
+		$this->CurrentFilter = $sFilter;
+		$sSql = $this->SQL();
+		$conn->raiseErrorFn = $GLOBALS["EW_ERROR_FN"];
+		$rs = $conn->Execute($sSql);
+		$conn->raiseErrorFn = '';
+		if ($rs === FALSE)
+			return FALSE;
+		if ($rs->EOF) {
+			$this->setFailureMessage($Language->Phrase("NoRecord")); // Set no record message
+			$EditRow = FALSE; // Update Failed
+		} else {
+
+			// Save old values
+			$rsold = &$rs->fields;
+			$this->LoadDbValues($rsold);
+			$rsnew = array();
+
+			// UserID
+			$this->_UserID->SetDbValueDef($rsnew, $this->_UserID->CurrentValue, 0, $this->_UserID->ReadOnly);
+
+			// TglJam
+			$this->TglJam->SetDbValueDef($rsnew, ew_UnFormatDateTime($this->TglJam->CurrentValue, 0), ew_CurrentDate(), $this->TglJam->ReadOnly);
+
+			// BuktiBayar
+			if ($this->BuktiBayar->Visible && !$this->BuktiBayar->ReadOnly && !$this->BuktiBayar->Upload->KeepFile) {
+				$this->BuktiBayar->Upload->DbValue = $rsold['BuktiBayar']; // Get original value
+				if ($this->BuktiBayar->Upload->FileName == "") {
+					$rsnew['BuktiBayar'] = NULL;
+				} else {
+					$rsnew['BuktiBayar'] = $this->BuktiBayar->Upload->FileName;
+				}
+			}
+
+			// JumlahBayar
+			$this->JumlahBayar->SetDbValueDef($rsnew, $this->JumlahBayar->CurrentValue, 0, $this->JumlahBayar->ReadOnly);
+
+			// Acc
+			$this->Acc->SetDbValueDef($rsnew, $this->Acc->CurrentValue, 0, $this->Acc->ReadOnly);
+			if ($this->BuktiBayar->Visible && !$this->BuktiBayar->Upload->KeepFile) {
+				if (!ew_Empty($this->BuktiBayar->Upload->Value)) {
+					$rsnew['BuktiBayar'] = ew_UploadFileNameEx(ew_UploadPathEx(TRUE, $this->BuktiBayar->UploadPath), $rsnew['BuktiBayar']); // Get new file name
+				}
+			}
+
+			// Call Row Updating event
+			$bUpdateRow = $this->Row_Updating($rsold, $rsnew);
+			if ($bUpdateRow) {
+				$conn->raiseErrorFn = $GLOBALS["EW_ERROR_FN"];
+				if (count($rsnew) > 0)
+					$EditRow = $this->Update($rsnew, "", $rsold);
+				else
+					$EditRow = TRUE; // No field to update
+				$conn->raiseErrorFn = '';
+				if ($EditRow) {
+					if ($this->BuktiBayar->Visible && !$this->BuktiBayar->Upload->KeepFile) {
+						if (!ew_Empty($this->BuktiBayar->Upload->Value)) {
+							if (!$this->BuktiBayar->Upload->SaveToFile($this->BuktiBayar->UploadPath, $rsnew['BuktiBayar'], TRUE)) {
+								$this->setFailureMessage($Language->Phrase("UploadErrMsg7"));
+								return FALSE;
+							}
+						}
+					}
+				}
+			} else {
+				if ($this->getSuccessMessage() <> "" || $this->getFailureMessage() <> "") {
+
+					// Use the message, do nothing
+				} elseif ($this->CancelMessage <> "") {
+					$this->setFailureMessage($this->CancelMessage);
+					$this->CancelMessage = "";
+				} else {
+					$this->setFailureMessage($Language->Phrase("UpdateCancelled"));
+				}
+				$EditRow = FALSE;
+			}
+		}
+
+		// Call Row_Updated event
+		if ($EditRow)
+			$this->Row_Updated($rsold, $rsnew);
+		$rs->Close();
+
+		// BuktiBayar
+		ew_CleanUploadTempPath($this->BuktiBayar, $this->BuktiBayar->Upload->Index);
+		return $EditRow;
+	}
+
+	// Add record
+	function AddRow($rsold = NULL) {
+		global $Language, $Security;
+		$conn = &$this->Connection();
+
+		// Load db values from rsold
+		if ($rsold) {
+			$this->LoadDbValues($rsold);
+		}
+		$rsnew = array();
+
+		// UserID
+		$this->_UserID->SetDbValueDef($rsnew, $this->_UserID->CurrentValue, 0, strval($this->_UserID->CurrentValue) == "");
+
+		// TglJam
+		$this->TglJam->SetDbValueDef($rsnew, ew_UnFormatDateTime($this->TglJam->CurrentValue, 0), ew_CurrentDate(), strval($this->TglJam->CurrentValue) == "");
+
+		// BuktiBayar
+		if ($this->BuktiBayar->Visible && !$this->BuktiBayar->Upload->KeepFile) {
+			$this->BuktiBayar->Upload->DbValue = ""; // No need to delete old file
+			if ($this->BuktiBayar->Upload->FileName == "") {
+				$rsnew['BuktiBayar'] = NULL;
+			} else {
+				$rsnew['BuktiBayar'] = $this->BuktiBayar->Upload->FileName;
+			}
+		}
+
+		// JumlahBayar
+		$this->JumlahBayar->SetDbValueDef($rsnew, $this->JumlahBayar->CurrentValue, 0, strval($this->JumlahBayar->CurrentValue) == "");
+
+		// Acc
+		$this->Acc->SetDbValueDef($rsnew, $this->Acc->CurrentValue, 0, strval($this->Acc->CurrentValue) == "");
+		if ($this->BuktiBayar->Visible && !$this->BuktiBayar->Upload->KeepFile) {
+			if (!ew_Empty($this->BuktiBayar->Upload->Value)) {
+				$rsnew['BuktiBayar'] = ew_UploadFileNameEx(ew_UploadPathEx(TRUE, $this->BuktiBayar->UploadPath), $rsnew['BuktiBayar']); // Get new file name
+			}
+		}
+
+		// Call Row Inserting event
+		$rs = ($rsold == NULL) ? NULL : $rsold->fields;
+		$bInsertRow = $this->Row_Inserting($rs, $rsnew);
+		if ($bInsertRow) {
+			$conn->raiseErrorFn = $GLOBALS["EW_ERROR_FN"];
+			$AddRow = $this->Insert($rsnew);
+			$conn->raiseErrorFn = '';
+			if ($AddRow) {
+				if ($this->BuktiBayar->Visible && !$this->BuktiBayar->Upload->KeepFile) {
+					if (!ew_Empty($this->BuktiBayar->Upload->Value)) {
+						if (!$this->BuktiBayar->Upload->SaveToFile($this->BuktiBayar->UploadPath, $rsnew['BuktiBayar'], TRUE)) {
+							$this->setFailureMessage($Language->Phrase("UploadErrMsg7"));
+							return FALSE;
+						}
+					}
+				}
+			}
+		} else {
+			if ($this->getSuccessMessage() <> "" || $this->getFailureMessage() <> "") {
+
+				// Use the message, do nothing
+			} elseif ($this->CancelMessage <> "") {
+				$this->setFailureMessage($this->CancelMessage);
+				$this->CancelMessage = "";
+			} else {
+				$this->setFailureMessage($Language->Phrase("InsertCancelled"));
+			}
+			$AddRow = FALSE;
+		}
+		if ($AddRow) {
+
+			// Call Row Inserted event
+			$rs = ($rsold == NULL) ? NULL : $rsold->fields;
+			$this->Row_Inserted($rs, $rsnew);
+		}
+
+		// BuktiBayar
+		ew_CleanUploadTempPath($this->BuktiBayar, $this->BuktiBayar->Upload->Index);
+		return $AddRow;
 	}
 
 	// Set up export options
@@ -2089,6 +3260,19 @@ class ct_daftarm_list extends ct_daftarm {
 		global $gsLanguage;
 		$pageId = $pageId ?: $this->PageID;
 		switch ($fld->FldVar) {
+		case "x__UserID":
+			$sSqlWrk = "";
+			$sSqlWrk = "SELECT `UserID` AS `LinkFld`, `Nama` AS `DispFld`, `NIM` AS `Disp2Fld`, '' AS `Disp3Fld`, '' AS `Disp4Fld` FROM `t_user`";
+			$sWhereWrk = "{filter}";
+			$this->_UserID->LookupFilters = array("dx1" => '`Nama`', "dx2" => '`NIM`');
+			if (!$GLOBALS["t_daftarm"]->UserIDAllow($GLOBALS["t_daftarm"]->CurrentAction)) $sWhereWrk = $GLOBALS["t_user"]->AddUserIDFilter($sWhereWrk);
+			$fld->LookupFilters += array("s" => $sSqlWrk, "d" => "", "f0" => '`UserID` = {filter_value}', "t0" => "3", "fn0" => "");
+			$sSqlWrk = "";
+			$this->Lookup_Selecting($this->_UserID, $sWhereWrk); // Call Lookup selecting
+			if ($sWhereWrk <> "") $sSqlWrk .= " WHERE " . $sWhereWrk;
+			if ($sSqlWrk <> "")
+				$fld->LookupFilters["s"] .= $sSqlWrk;
+			break;
 		}
 	}
 
@@ -2247,6 +3431,54 @@ var CurrentPageID = EW_PAGE_ID = "list";
 var CurrentForm = ft_daftarmlist = new ew_Form("ft_daftarmlist", "list");
 ft_daftarmlist.FormKeyCountName = '<?php echo $t_daftarm_list->FormKeyCountName ?>';
 
+// Validate form
+ft_daftarmlist.Validate = function() {
+	if (!this.ValidateRequired)
+		return true; // Ignore validation
+	var $ = jQuery, fobj = this.GetForm(), $fobj = $(fobj);
+	if ($fobj.find("#a_confirm").val() == "F")
+		return true;
+	var elm, felm, uelm, addcnt = 0;
+	var $k = $fobj.find("#" + this.FormKeyCountName); // Get key_count
+	var rowcnt = ($k[0]) ? parseInt($k.val(), 10) : 1;
+	var startcnt = (rowcnt == 0) ? 0 : 1; // Check rowcnt == 0 => Inline-Add
+	var gridinsert = $fobj.find("#a_list").val() == "gridinsert";
+	for (var i = startcnt; i <= rowcnt; i++) {
+		var infix = ($k[0]) ? String(i) : "";
+		$fobj.data("rowindex", infix);
+		var checkrow = (gridinsert) ? !this.EmptyRow(infix) : true;
+		if (checkrow) {
+			addcnt++;
+			elm = this.GetElements("x" + infix + "_TglJam");
+			if (elm && !ew_CheckDateDef(elm.value))
+				return this.OnError(elm, "<?php echo ew_JsEncode2($t_daftarm->TglJam->FldErrMsg()) ?>");
+			elm = this.GetElements("x" + infix + "_JumlahBayar");
+			if (elm && !ew_CheckNumber(elm.value))
+				return this.OnError(elm, "<?php echo ew_JsEncode2($t_daftarm->JumlahBayar->FldErrMsg()) ?>");
+
+			// Fire Form_CustomValidate event
+			if (!this.Form_CustomValidate(fobj))
+				return false;
+		} // End Grid Add checking
+	}
+	if (gridinsert && addcnt == 0) { // No row added
+		ew_Alert(ewLanguage.Phrase("NoAddRecord"));
+		return false;
+	}
+	return true;
+}
+
+// Check empty row
+ft_daftarmlist.EmptyRow = function(infix) {
+	var fobj = this.Form;
+	if (ew_ValueChanged(fobj, infix, "_UserID", false)) return false;
+	if (ew_ValueChanged(fobj, infix, "TglJam", false)) return false;
+	if (ew_ValueChanged(fobj, infix, "BuktiBayar", false)) return false;
+	if (ew_ValueChanged(fobj, infix, "JumlahBayar", false)) return false;
+	if (ew_ValueChanged(fobj, infix, "Acc", false)) return false;
+	return true;
+}
+
 // Form_CustomValidate event
 ft_daftarmlist.Form_CustomValidate = 
  function(fobj) { // DO NOT CHANGE THIS LINE!
@@ -2263,8 +3495,9 @@ ft_daftarmlist.ValidateRequired = false;
 <?php } ?>
 
 // Dynamic selection lists
-ft_daftarmlist.Lists["x_Acc[]"] = {"LinkField":"","Ajax":null,"AutoFill":false,"DisplayFields":["","","",""],"ParentFields":[],"ChildFields":[],"FilterFields":[],"Options":[],"Template":""};
-ft_daftarmlist.Lists["x_Acc[]"].Options = <?php echo json_encode($t_daftarm->Acc->Options()) ?>;
+ft_daftarmlist.Lists["x__UserID"] = {"LinkField":"x__UserID","Ajax":true,"AutoFill":false,"DisplayFields":["x_Nama","x_NIM","",""],"ParentFields":[],"ChildFields":[],"FilterFields":[],"Options":[],"Template":"","LinkTable":"t_user"};
+ft_daftarmlist.Lists["x_Acc"] = {"LinkField":"","Ajax":null,"AutoFill":false,"DisplayFields":["","","",""],"ParentFields":[],"ChildFields":[],"FilterFields":[],"Options":[],"Template":""};
+ft_daftarmlist.Lists["x_Acc"].Options = <?php echo json_encode($t_daftarm->Acc->Options()) ?>;
 
 // Form object for search
 var CurrentSearchForm = ft_daftarmlistsrch = new ew_Form("ft_daftarmlistsrch");
@@ -2295,6 +3528,13 @@ var CurrentSearchForm = ft_daftarmlistsrch = new ew_Form("ft_daftarmlistsrch");
 </div>
 <?php } ?>
 <?php
+if ($t_daftarm->CurrentAction == "gridadd") {
+	$t_daftarm->CurrentFilter = "0=1";
+	$t_daftarm_list->StartRec = 1;
+	$t_daftarm_list->DisplayRecs = $t_daftarm->GridAddRowCount;
+	$t_daftarm_list->TotalRecs = $t_daftarm_list->DisplayRecs;
+	$t_daftarm_list->StopRec = $t_daftarm_list->DisplayRecs;
+} else {
 	$bSelectLimit = $t_daftarm_list->UseSelectLimit;
 	if ($bSelectLimit) {
 		if ($t_daftarm_list->TotalRecs <= 0)
@@ -2327,6 +3567,7 @@ var CurrentSearchForm = ft_daftarmlistsrch = new ew_Form("ft_daftarmlistsrch");
 		$searchsql = $t_daftarm_list->getSessionWhere();
 		$t_daftarm_list->WriteAuditTrailOnSearch($searchparm, $searchsql);
 	}
+}
 $t_daftarm_list->RenderOtherOptions();
 ?>
 <?php if ($Security->CanSearch()) { ?>
@@ -2441,7 +3682,7 @@ $t_daftarm_list->ShowMessage();
 <?php } ?>
 <input type="hidden" name="t" value="t_daftarm">
 <div id="gmp_t_daftarm" class="<?php if (ew_IsResponsiveLayout()) { echo "table-responsive "; } ?>ewGridMiddlePanel">
-<?php if ($t_daftarm_list->TotalRecs > 0 || $t_daftarm->CurrentAction == "gridedit") { ?>
+<?php if ($t_daftarm_list->TotalRecs > 0 || $t_daftarm->CurrentAction == "add" || $t_daftarm->CurrentAction == "copy" || $t_daftarm->CurrentAction == "gridedit") { ?>
 <table id="tbl_t_daftarmlist" class="table ewTable">
 <?php echo $t_daftarm->TableCustomInnerHtml ?>
 <thead><!-- Table header -->
@@ -2457,6 +3698,15 @@ $t_daftarm_list->RenderListOptions();
 // Render list options (header, left)
 $t_daftarm_list->ListOptions->Render("header", "left");
 ?>
+<?php if ($t_daftarm->_UserID->Visible) { // UserID ?>
+	<?php if ($t_daftarm->SortUrl($t_daftarm->_UserID) == "") { ?>
+		<th data-name="_UserID"><div id="elh_t_daftarm__UserID" class="t_daftarm__UserID"><div class="ewTableHeaderCaption"><?php echo $t_daftarm->_UserID->FldCaption() ?></div></div></th>
+	<?php } else { ?>
+		<th data-name="_UserID"><div class="ewPointer" onclick="ew_Sort(event,'<?php echo $t_daftarm->SortUrl($t_daftarm->_UserID) ?>',2);"><div id="elh_t_daftarm__UserID" class="t_daftarm__UserID">
+			<div class="ewTableHeaderBtn"><span class="ewTableHeaderCaption"><?php echo $t_daftarm->_UserID->FldCaption() ?></span><span class="ewTableHeaderSort"><?php if ($t_daftarm->_UserID->getSort() == "ASC") { ?><span class="caret ewSortUp"></span><?php } elseif ($t_daftarm->_UserID->getSort() == "DESC") { ?><span class="caret"></span><?php } ?></span></div>
+        </div></div></th>
+	<?php } ?>
+<?php } ?>		
 <?php if ($t_daftarm->TglJam->Visible) { // TglJam ?>
 	<?php if ($t_daftarm->SortUrl($t_daftarm->TglJam) == "") { ?>
 		<th data-name="TglJam"><div id="elh_t_daftarm_TglJam" class="t_daftarm_TglJam"><div class="ewTableHeaderCaption"><?php echo $t_daftarm->TglJam->FldCaption() ?></div></div></th>
@@ -2502,6 +3752,111 @@ $t_daftarm_list->ListOptions->Render("header", "right");
 </thead>
 <tbody>
 <?php
+	if ($t_daftarm->CurrentAction == "add" || $t_daftarm->CurrentAction == "copy") {
+		$t_daftarm_list->RowIndex = 0;
+		$t_daftarm_list->KeyCount = $t_daftarm_list->RowIndex;
+		if ($t_daftarm->CurrentAction == "copy" && !$t_daftarm_list->LoadRow())
+				$t_daftarm->CurrentAction = "add";
+		if ($t_daftarm->CurrentAction == "add")
+			$t_daftarm_list->LoadDefaultValues();
+		if ($t_daftarm->EventCancelled) // Insert failed
+			$t_daftarm_list->RestoreFormValues(); // Restore form values
+
+		// Set row properties
+		$t_daftarm->ResetAttrs();
+		$t_daftarm->RowAttrs = array_merge($t_daftarm->RowAttrs, array('data-rowindex'=>0, 'id'=>'r0_t_daftarm', 'data-rowtype'=>EW_ROWTYPE_ADD));
+		$t_daftarm->RowType = EW_ROWTYPE_ADD;
+
+		// Render row
+		$t_daftarm_list->RenderRow();
+
+		// Render list options
+		$t_daftarm_list->RenderListOptions();
+		$t_daftarm_list->StartRowCnt = 0;
+?>
+	<tr<?php echo $t_daftarm->RowAttributes() ?>>
+<?php
+
+// Render list options (body, left)
+$t_daftarm_list->ListOptions->Render("body", "left", $t_daftarm_list->RowCnt);
+?>
+	<?php if ($t_daftarm->_UserID->Visible) { // UserID ?>
+		<td data-name="_UserID">
+<span id="el<?php echo $t_daftarm_list->RowCnt ?>_t_daftarm__UserID" class="form-group t_daftarm__UserID">
+<span class="ewLookupList">
+	<span onclick="jQuery(this).parent().next().click();" tabindex="-1" class="form-control ewLookupText" id="lu_x<?php echo $t_daftarm_list->RowIndex ?>__UserID"><?php echo (strval($t_daftarm->_UserID->ViewValue) == "" ? $Language->Phrase("PleaseSelect") : $t_daftarm->_UserID->ViewValue); ?></span>
+</span>
+<button type="button" title="<?php echo ew_HtmlEncode(str_replace("%s", ew_RemoveHtml($t_daftarm->_UserID->FldCaption()), $Language->Phrase("LookupLink", TRUE))) ?>" onclick="ew_ModalLookupShow({lnk:this,el:'x<?php echo $t_daftarm_list->RowIndex ?>__UserID',m:0,n:10});" class="ewLookupBtn btn btn-default btn-sm"><span class="glyphicon glyphicon-search ewIcon"></span></button>
+<input type="hidden" data-table="t_daftarm" data-field="x__UserID" data-multiple="0" data-lookup="1" data-value-separator="<?php echo $t_daftarm->_UserID->DisplayValueSeparatorAttribute() ?>" name="x<?php echo $t_daftarm_list->RowIndex ?>__UserID" id="x<?php echo $t_daftarm_list->RowIndex ?>__UserID" value="<?php echo $t_daftarm->_UserID->CurrentValue ?>"<?php echo $t_daftarm->_UserID->EditAttributes() ?>>
+<input type="hidden" name="s_x<?php echo $t_daftarm_list->RowIndex ?>__UserID" id="s_x<?php echo $t_daftarm_list->RowIndex ?>__UserID" value="<?php echo $t_daftarm->_UserID->LookupFilterQuery() ?>">
+</span>
+<input type="hidden" data-table="t_daftarm" data-field="x__UserID" name="o<?php echo $t_daftarm_list->RowIndex ?>__UserID" id="o<?php echo $t_daftarm_list->RowIndex ?>__UserID" value="<?php echo ew_HtmlEncode($t_daftarm->_UserID->OldValue) ?>">
+</td>
+	<?php } ?>
+	<?php if ($t_daftarm->TglJam->Visible) { // TglJam ?>
+		<td data-name="TglJam">
+<span id="el<?php echo $t_daftarm_list->RowCnt ?>_t_daftarm_TglJam" class="form-group t_daftarm_TglJam">
+<input type="text" data-table="t_daftarm" data-field="x_TglJam" name="x<?php echo $t_daftarm_list->RowIndex ?>_TglJam" id="x<?php echo $t_daftarm_list->RowIndex ?>_TglJam" placeholder="<?php echo ew_HtmlEncode($t_daftarm->TglJam->getPlaceHolder()) ?>" value="<?php echo $t_daftarm->TglJam->EditValue ?>"<?php echo $t_daftarm->TglJam->EditAttributes() ?>>
+<?php if (!$t_daftarm->TglJam->ReadOnly && !$t_daftarm->TglJam->Disabled && !isset($t_daftarm->TglJam->EditAttrs["readonly"]) && !isset($t_daftarm->TglJam->EditAttrs["disabled"])) { ?>
+<script type="text/javascript">
+ew_CreateCalendar("ft_daftarmlist", "x<?php echo $t_daftarm_list->RowIndex ?>_TglJam", 0);
+</script>
+<?php } ?>
+</span>
+<input type="hidden" data-table="t_daftarm" data-field="x_TglJam" name="o<?php echo $t_daftarm_list->RowIndex ?>_TglJam" id="o<?php echo $t_daftarm_list->RowIndex ?>_TglJam" value="<?php echo ew_HtmlEncode($t_daftarm->TglJam->OldValue) ?>">
+</td>
+	<?php } ?>
+	<?php if ($t_daftarm->BuktiBayar->Visible) { // BuktiBayar ?>
+		<td data-name="BuktiBayar">
+<span id="el<?php echo $t_daftarm_list->RowCnt ?>_t_daftarm_BuktiBayar" class="form-group t_daftarm_BuktiBayar">
+<div id="fd_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar">
+<span title="<?php echo $t_daftarm->BuktiBayar->FldTitle() ? $t_daftarm->BuktiBayar->FldTitle() : $Language->Phrase("ChooseFile") ?>" class="btn btn-default btn-sm fileinput-button ewTooltip<?php if ($t_daftarm->BuktiBayar->ReadOnly || $t_daftarm->BuktiBayar->Disabled) echo " hide"; ?>">
+	<span><?php echo $Language->Phrase("ChooseFileBtn") ?></span>
+	<input type="file" title=" " data-table="t_daftarm" data-field="x_BuktiBayar" name="x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" id="x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar"<?php echo $t_daftarm->BuktiBayar->EditAttributes() ?>>
+</span>
+<input type="hidden" name="fn_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" id= "fn_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" value="<?php echo $t_daftarm->BuktiBayar->Upload->FileName ?>">
+<input type="hidden" name="fa_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" id= "fa_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" value="0">
+<input type="hidden" name="fs_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" id= "fs_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" value="255">
+<input type="hidden" name="fx_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" id= "fx_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" value="<?php echo $t_daftarm->BuktiBayar->UploadAllowedFileExt ?>">
+<input type="hidden" name="fm_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" id= "fm_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" value="<?php echo $t_daftarm->BuktiBayar->UploadMaxFileSize ?>">
+</div>
+<table id="ft_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" class="table table-condensed pull-left ewUploadTable"><tbody class="files"></tbody></table>
+</span>
+<input type="hidden" data-table="t_daftarm" data-field="x_BuktiBayar" name="o<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" id="o<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" value="<?php echo ew_HtmlEncode($t_daftarm->BuktiBayar->OldValue) ?>">
+</td>
+	<?php } ?>
+	<?php if ($t_daftarm->JumlahBayar->Visible) { // JumlahBayar ?>
+		<td data-name="JumlahBayar">
+<span id="el<?php echo $t_daftarm_list->RowCnt ?>_t_daftarm_JumlahBayar" class="form-group t_daftarm_JumlahBayar">
+<input type="text" data-table="t_daftarm" data-field="x_JumlahBayar" name="x<?php echo $t_daftarm_list->RowIndex ?>_JumlahBayar" id="x<?php echo $t_daftarm_list->RowIndex ?>_JumlahBayar" size="30" placeholder="<?php echo ew_HtmlEncode($t_daftarm->JumlahBayar->getPlaceHolder()) ?>" value="<?php echo $t_daftarm->JumlahBayar->EditValue ?>"<?php echo $t_daftarm->JumlahBayar->EditAttributes() ?>>
+</span>
+<input type="hidden" data-table="t_daftarm" data-field="x_JumlahBayar" name="o<?php echo $t_daftarm_list->RowIndex ?>_JumlahBayar" id="o<?php echo $t_daftarm_list->RowIndex ?>_JumlahBayar" value="<?php echo ew_HtmlEncode($t_daftarm->JumlahBayar->OldValue) ?>">
+</td>
+	<?php } ?>
+	<?php if ($t_daftarm->Acc->Visible) { // Acc ?>
+		<td data-name="Acc">
+<span id="el<?php echo $t_daftarm_list->RowCnt ?>_t_daftarm_Acc" class="form-group t_daftarm_Acc">
+<div id="tp_x<?php echo $t_daftarm_list->RowIndex ?>_Acc" class="ewTemplate"><input type="radio" data-table="t_daftarm" data-field="x_Acc" data-value-separator="<?php echo $t_daftarm->Acc->DisplayValueSeparatorAttribute() ?>" name="x<?php echo $t_daftarm_list->RowIndex ?>_Acc" id="x<?php echo $t_daftarm_list->RowIndex ?>_Acc" value="{value}"<?php echo $t_daftarm->Acc->EditAttributes() ?>></div>
+<div id="dsl_x<?php echo $t_daftarm_list->RowIndex ?>_Acc" data-repeatcolumn="5" class="ewItemList" style="display: none;"><div>
+<?php echo $t_daftarm->Acc->RadioButtonListHtml(FALSE, "x{$t_daftarm_list->RowIndex}_Acc") ?>
+</div></div>
+</span>
+<input type="hidden" data-table="t_daftarm" data-field="x_Acc" name="o<?php echo $t_daftarm_list->RowIndex ?>_Acc" id="o<?php echo $t_daftarm_list->RowIndex ?>_Acc" value="<?php echo ew_HtmlEncode($t_daftarm->Acc->OldValue) ?>">
+</td>
+	<?php } ?>
+<?php
+
+// Render list options (body, right)
+$t_daftarm_list->ListOptions->Render("body", "right", $t_daftarm_list->RowCnt);
+?>
+<script type="text/javascript">
+ft_daftarmlist.UpdateOpts(<?php echo $t_daftarm_list->RowIndex ?>);
+</script>
+	</tr>
+<?php
+}
+?>
+<?php
 if ($t_daftarm->ExportAll && $t_daftarm->Export <> "") {
 	$t_daftarm_list->StopRec = $t_daftarm_list->TotalRecs;
 } else {
@@ -2511,6 +3866,15 @@ if ($t_daftarm->ExportAll && $t_daftarm->Export <> "") {
 		$t_daftarm_list->StopRec = $t_daftarm_list->StartRec + $t_daftarm_list->DisplayRecs - 1;
 	else
 		$t_daftarm_list->StopRec = $t_daftarm_list->TotalRecs;
+}
+
+// Restore number of post back records
+if ($objForm) {
+	$objForm->Index = -1;
+	if ($objForm->HasValue($t_daftarm_list->FormKeyCountName) && ($t_daftarm->CurrentAction == "gridadd" || $t_daftarm->CurrentAction == "gridedit" || $t_daftarm->CurrentAction == "F")) {
+		$t_daftarm_list->KeyCount = $objForm->GetValue($t_daftarm_list->FormKeyCountName);
+		$t_daftarm_list->StopRec = $t_daftarm_list->StartRec + $t_daftarm_list->KeyCount - 1;
+	}
 }
 $t_daftarm_list->RecCnt = $t_daftarm_list->StartRec - 1;
 if ($t_daftarm_list->Recordset && !$t_daftarm_list->Recordset->EOF) {
@@ -2526,10 +3890,27 @@ if ($t_daftarm_list->Recordset && !$t_daftarm_list->Recordset->EOF) {
 $t_daftarm->RowType = EW_ROWTYPE_AGGREGATEINIT;
 $t_daftarm->ResetAttrs();
 $t_daftarm_list->RenderRow();
+$t_daftarm_list->EditRowCnt = 0;
+if ($t_daftarm->CurrentAction == "edit")
+	$t_daftarm_list->RowIndex = 1;
+if ($t_daftarm->CurrentAction == "gridadd")
+	$t_daftarm_list->RowIndex = 0;
+if ($t_daftarm->CurrentAction == "gridedit")
+	$t_daftarm_list->RowIndex = 0;
 while ($t_daftarm_list->RecCnt < $t_daftarm_list->StopRec) {
 	$t_daftarm_list->RecCnt++;
 	if (intval($t_daftarm_list->RecCnt) >= intval($t_daftarm_list->StartRec)) {
 		$t_daftarm_list->RowCnt++;
+		if ($t_daftarm->CurrentAction == "gridadd" || $t_daftarm->CurrentAction == "gridedit" || $t_daftarm->CurrentAction == "F") {
+			$t_daftarm_list->RowIndex++;
+			$objForm->Index = $t_daftarm_list->RowIndex;
+			if ($objForm->HasValue($t_daftarm_list->FormActionName))
+				$t_daftarm_list->RowAction = strval($objForm->GetValue($t_daftarm_list->FormActionName));
+			elseif ($t_daftarm->CurrentAction == "gridadd")
+				$t_daftarm_list->RowAction = "insert";
+			else
+				$t_daftarm_list->RowAction = "";
+		}
 
 		// Set up key count
 		$t_daftarm_list->KeyCount = $t_daftarm_list->RowIndex;
@@ -2538,10 +3919,37 @@ while ($t_daftarm_list->RecCnt < $t_daftarm_list->StopRec) {
 		$t_daftarm->ResetAttrs();
 		$t_daftarm->CssClass = "";
 		if ($t_daftarm->CurrentAction == "gridadd") {
+			$t_daftarm_list->LoadDefaultValues(); // Load default values
 		} else {
 			$t_daftarm_list->LoadRowValues($t_daftarm_list->Recordset); // Load row values
 		}
 		$t_daftarm->RowType = EW_ROWTYPE_VIEW; // Render view
+		if ($t_daftarm->CurrentAction == "gridadd") // Grid add
+			$t_daftarm->RowType = EW_ROWTYPE_ADD; // Render add
+		if ($t_daftarm->CurrentAction == "gridadd" && $t_daftarm->EventCancelled && !$objForm->HasValue("k_blankrow")) // Insert failed
+			$t_daftarm_list->RestoreCurrentRowFormValues($t_daftarm_list->RowIndex); // Restore form values
+		if ($t_daftarm->CurrentAction == "edit") {
+			if ($t_daftarm_list->CheckInlineEditKey() && $t_daftarm_list->EditRowCnt == 0) { // Inline edit
+				$t_daftarm->RowType = EW_ROWTYPE_EDIT; // Render edit
+			}
+		}
+		if ($t_daftarm->CurrentAction == "gridedit") { // Grid edit
+			if ($t_daftarm->EventCancelled) {
+				$t_daftarm_list->RestoreCurrentRowFormValues($t_daftarm_list->RowIndex); // Restore form values
+			}
+			if ($t_daftarm_list->RowAction == "insert")
+				$t_daftarm->RowType = EW_ROWTYPE_ADD; // Render add
+			else
+				$t_daftarm->RowType = EW_ROWTYPE_EDIT; // Render edit
+		}
+		if ($t_daftarm->CurrentAction == "edit" && $t_daftarm->RowType == EW_ROWTYPE_EDIT && $t_daftarm->EventCancelled) { // Update failed
+			$objForm->Index = 1;
+			$t_daftarm_list->RestoreFormValues(); // Restore form values
+		}
+		if ($t_daftarm->CurrentAction == "gridedit" && ($t_daftarm->RowType == EW_ROWTYPE_EDIT || $t_daftarm->RowType == EW_ROWTYPE_ADD) && $t_daftarm->EventCancelled) // Update failed
+			$t_daftarm_list->RestoreCurrentRowFormValues($t_daftarm_list->RowIndex); // Restore form values
+		if ($t_daftarm->RowType == EW_ROWTYPE_EDIT) // Edit row
+			$t_daftarm_list->EditRowCnt++;
 
 		// Set up row id / data-rowindex
 		$t_daftarm->RowAttrs = array_merge($t_daftarm->RowAttrs, array('data-rowindex'=>$t_daftarm_list->RowCnt, 'id'=>'r' . $t_daftarm_list->RowCnt . '_t_daftarm', 'data-rowtype'=>$t_daftarm->RowType));
@@ -2551,6 +3959,9 @@ while ($t_daftarm_list->RecCnt < $t_daftarm_list->StopRec) {
 
 		// Render list options
 		$t_daftarm_list->RenderListOptions();
+
+		// Skip delete row / empty row for confirm page
+		if ($t_daftarm_list->RowAction <> "delete" && $t_daftarm_list->RowAction <> "insertdelete" && !($t_daftarm_list->RowAction == "insert" && $t_daftarm->CurrentAction == "F" && $t_daftarm_list->EmptyRow())) {
 ?>
 	<tr<?php echo $t_daftarm->RowAttributes() ?>>
 <?php
@@ -2558,37 +3969,169 @@ while ($t_daftarm_list->RecCnt < $t_daftarm_list->StopRec) {
 // Render list options (body, left)
 $t_daftarm_list->ListOptions->Render("body", "left", $t_daftarm_list->RowCnt);
 ?>
+	<?php if ($t_daftarm->_UserID->Visible) { // UserID ?>
+		<td data-name="_UserID"<?php echo $t_daftarm->_UserID->CellAttributes() ?>>
+<?php if ($t_daftarm->RowType == EW_ROWTYPE_ADD) { // Add record ?>
+<span id="el<?php echo $t_daftarm_list->RowCnt ?>_t_daftarm__UserID" class="form-group t_daftarm__UserID">
+<span class="ewLookupList">
+	<span onclick="jQuery(this).parent().next().click();" tabindex="-1" class="form-control ewLookupText" id="lu_x<?php echo $t_daftarm_list->RowIndex ?>__UserID"><?php echo (strval($t_daftarm->_UserID->ViewValue) == "" ? $Language->Phrase("PleaseSelect") : $t_daftarm->_UserID->ViewValue); ?></span>
+</span>
+<button type="button" title="<?php echo ew_HtmlEncode(str_replace("%s", ew_RemoveHtml($t_daftarm->_UserID->FldCaption()), $Language->Phrase("LookupLink", TRUE))) ?>" onclick="ew_ModalLookupShow({lnk:this,el:'x<?php echo $t_daftarm_list->RowIndex ?>__UserID',m:0,n:10});" class="ewLookupBtn btn btn-default btn-sm"><span class="glyphicon glyphicon-search ewIcon"></span></button>
+<input type="hidden" data-table="t_daftarm" data-field="x__UserID" data-multiple="0" data-lookup="1" data-value-separator="<?php echo $t_daftarm->_UserID->DisplayValueSeparatorAttribute() ?>" name="x<?php echo $t_daftarm_list->RowIndex ?>__UserID" id="x<?php echo $t_daftarm_list->RowIndex ?>__UserID" value="<?php echo $t_daftarm->_UserID->CurrentValue ?>"<?php echo $t_daftarm->_UserID->EditAttributes() ?>>
+<input type="hidden" name="s_x<?php echo $t_daftarm_list->RowIndex ?>__UserID" id="s_x<?php echo $t_daftarm_list->RowIndex ?>__UserID" value="<?php echo $t_daftarm->_UserID->LookupFilterQuery() ?>">
+</span>
+<input type="hidden" data-table="t_daftarm" data-field="x__UserID" name="o<?php echo $t_daftarm_list->RowIndex ?>__UserID" id="o<?php echo $t_daftarm_list->RowIndex ?>__UserID" value="<?php echo ew_HtmlEncode($t_daftarm->_UserID->OldValue) ?>">
+<?php } ?>
+<?php if ($t_daftarm->RowType == EW_ROWTYPE_EDIT) { // Edit record ?>
+<span id="el<?php echo $t_daftarm_list->RowCnt ?>_t_daftarm__UserID" class="form-group t_daftarm__UserID">
+<span class="ewLookupList">
+	<span onclick="jQuery(this).parent().next().click();" tabindex="-1" class="form-control ewLookupText" id="lu_x<?php echo $t_daftarm_list->RowIndex ?>__UserID"><?php echo (strval($t_daftarm->_UserID->ViewValue) == "" ? $Language->Phrase("PleaseSelect") : $t_daftarm->_UserID->ViewValue); ?></span>
+</span>
+<button type="button" title="<?php echo ew_HtmlEncode(str_replace("%s", ew_RemoveHtml($t_daftarm->_UserID->FldCaption()), $Language->Phrase("LookupLink", TRUE))) ?>" onclick="ew_ModalLookupShow({lnk:this,el:'x<?php echo $t_daftarm_list->RowIndex ?>__UserID',m:0,n:10});" class="ewLookupBtn btn btn-default btn-sm"><span class="glyphicon glyphicon-search ewIcon"></span></button>
+<input type="hidden" data-table="t_daftarm" data-field="x__UserID" data-multiple="0" data-lookup="1" data-value-separator="<?php echo $t_daftarm->_UserID->DisplayValueSeparatorAttribute() ?>" name="x<?php echo $t_daftarm_list->RowIndex ?>__UserID" id="x<?php echo $t_daftarm_list->RowIndex ?>__UserID" value="<?php echo $t_daftarm->_UserID->CurrentValue ?>"<?php echo $t_daftarm->_UserID->EditAttributes() ?>>
+<input type="hidden" name="s_x<?php echo $t_daftarm_list->RowIndex ?>__UserID" id="s_x<?php echo $t_daftarm_list->RowIndex ?>__UserID" value="<?php echo $t_daftarm->_UserID->LookupFilterQuery() ?>">
+</span>
+<?php } ?>
+<?php if ($t_daftarm->RowType == EW_ROWTYPE_VIEW) { // View record ?>
+<span id="el<?php echo $t_daftarm_list->RowCnt ?>_t_daftarm__UserID" class="t_daftarm__UserID">
+<span<?php echo $t_daftarm->_UserID->ViewAttributes() ?>>
+<?php echo $t_daftarm->_UserID->ListViewValue() ?></span>
+</span>
+<?php } ?>
+<a id="<?php echo $t_daftarm_list->PageObjName . "_row_" . $t_daftarm_list->RowCnt ?>"></a></td>
+	<?php } ?>
+<?php if ($t_daftarm->RowType == EW_ROWTYPE_ADD) { // Add record ?>
+<input type="hidden" data-table="t_daftarm" data-field="x_DaftarmID" name="x<?php echo $t_daftarm_list->RowIndex ?>_DaftarmID" id="x<?php echo $t_daftarm_list->RowIndex ?>_DaftarmID" value="<?php echo ew_HtmlEncode($t_daftarm->DaftarmID->CurrentValue) ?>">
+<input type="hidden" data-table="t_daftarm" data-field="x_DaftarmID" name="o<?php echo $t_daftarm_list->RowIndex ?>_DaftarmID" id="o<?php echo $t_daftarm_list->RowIndex ?>_DaftarmID" value="<?php echo ew_HtmlEncode($t_daftarm->DaftarmID->OldValue) ?>">
+<?php } ?>
+<?php if ($t_daftarm->RowType == EW_ROWTYPE_EDIT || $t_daftarm->CurrentMode == "edit") { ?>
+<input type="hidden" data-table="t_daftarm" data-field="x_DaftarmID" name="x<?php echo $t_daftarm_list->RowIndex ?>_DaftarmID" id="x<?php echo $t_daftarm_list->RowIndex ?>_DaftarmID" value="<?php echo ew_HtmlEncode($t_daftarm->DaftarmID->CurrentValue) ?>">
+<?php } ?>
 	<?php if ($t_daftarm->TglJam->Visible) { // TglJam ?>
 		<td data-name="TglJam"<?php echo $t_daftarm->TglJam->CellAttributes() ?>>
+<?php if ($t_daftarm->RowType == EW_ROWTYPE_ADD) { // Add record ?>
+<span id="el<?php echo $t_daftarm_list->RowCnt ?>_t_daftarm_TglJam" class="form-group t_daftarm_TglJam">
+<input type="text" data-table="t_daftarm" data-field="x_TglJam" name="x<?php echo $t_daftarm_list->RowIndex ?>_TglJam" id="x<?php echo $t_daftarm_list->RowIndex ?>_TglJam" placeholder="<?php echo ew_HtmlEncode($t_daftarm->TglJam->getPlaceHolder()) ?>" value="<?php echo $t_daftarm->TglJam->EditValue ?>"<?php echo $t_daftarm->TglJam->EditAttributes() ?>>
+<?php if (!$t_daftarm->TglJam->ReadOnly && !$t_daftarm->TglJam->Disabled && !isset($t_daftarm->TglJam->EditAttrs["readonly"]) && !isset($t_daftarm->TglJam->EditAttrs["disabled"])) { ?>
+<script type="text/javascript">
+ew_CreateCalendar("ft_daftarmlist", "x<?php echo $t_daftarm_list->RowIndex ?>_TglJam", 0);
+</script>
+<?php } ?>
+</span>
+<input type="hidden" data-table="t_daftarm" data-field="x_TglJam" name="o<?php echo $t_daftarm_list->RowIndex ?>_TglJam" id="o<?php echo $t_daftarm_list->RowIndex ?>_TglJam" value="<?php echo ew_HtmlEncode($t_daftarm->TglJam->OldValue) ?>">
+<?php } ?>
+<?php if ($t_daftarm->RowType == EW_ROWTYPE_EDIT) { // Edit record ?>
+<span id="el<?php echo $t_daftarm_list->RowCnt ?>_t_daftarm_TglJam" class="form-group t_daftarm_TglJam">
+<input type="text" data-table="t_daftarm" data-field="x_TglJam" name="x<?php echo $t_daftarm_list->RowIndex ?>_TglJam" id="x<?php echo $t_daftarm_list->RowIndex ?>_TglJam" placeholder="<?php echo ew_HtmlEncode($t_daftarm->TglJam->getPlaceHolder()) ?>" value="<?php echo $t_daftarm->TglJam->EditValue ?>"<?php echo $t_daftarm->TglJam->EditAttributes() ?>>
+<?php if (!$t_daftarm->TglJam->ReadOnly && !$t_daftarm->TglJam->Disabled && !isset($t_daftarm->TglJam->EditAttrs["readonly"]) && !isset($t_daftarm->TglJam->EditAttrs["disabled"])) { ?>
+<script type="text/javascript">
+ew_CreateCalendar("ft_daftarmlist", "x<?php echo $t_daftarm_list->RowIndex ?>_TglJam", 0);
+</script>
+<?php } ?>
+</span>
+<?php } ?>
+<?php if ($t_daftarm->RowType == EW_ROWTYPE_VIEW) { // View record ?>
 <span id="el<?php echo $t_daftarm_list->RowCnt ?>_t_daftarm_TglJam" class="t_daftarm_TglJam">
 <span<?php echo $t_daftarm->TglJam->ViewAttributes() ?>>
 <?php echo $t_daftarm->TglJam->ListViewValue() ?></span>
 </span>
-<a id="<?php echo $t_daftarm_list->PageObjName . "_row_" . $t_daftarm_list->RowCnt ?>"></a></td>
+<?php } ?>
+</td>
 	<?php } ?>
 	<?php if ($t_daftarm->BuktiBayar->Visible) { // BuktiBayar ?>
 		<td data-name="BuktiBayar"<?php echo $t_daftarm->BuktiBayar->CellAttributes() ?>>
+<?php if ($t_daftarm->RowType == EW_ROWTYPE_ADD) { // Add record ?>
+<span id="el<?php echo $t_daftarm_list->RowCnt ?>_t_daftarm_BuktiBayar" class="form-group t_daftarm_BuktiBayar">
+<div id="fd_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar">
+<span title="<?php echo $t_daftarm->BuktiBayar->FldTitle() ? $t_daftarm->BuktiBayar->FldTitle() : $Language->Phrase("ChooseFile") ?>" class="btn btn-default btn-sm fileinput-button ewTooltip<?php if ($t_daftarm->BuktiBayar->ReadOnly || $t_daftarm->BuktiBayar->Disabled) echo " hide"; ?>">
+	<span><?php echo $Language->Phrase("ChooseFileBtn") ?></span>
+	<input type="file" title=" " data-table="t_daftarm" data-field="x_BuktiBayar" name="x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" id="x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar"<?php echo $t_daftarm->BuktiBayar->EditAttributes() ?>>
+</span>
+<input type="hidden" name="fn_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" id= "fn_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" value="<?php echo $t_daftarm->BuktiBayar->Upload->FileName ?>">
+<input type="hidden" name="fa_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" id= "fa_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" value="0">
+<input type="hidden" name="fs_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" id= "fs_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" value="255">
+<input type="hidden" name="fx_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" id= "fx_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" value="<?php echo $t_daftarm->BuktiBayar->UploadAllowedFileExt ?>">
+<input type="hidden" name="fm_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" id= "fm_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" value="<?php echo $t_daftarm->BuktiBayar->UploadMaxFileSize ?>">
+</div>
+<table id="ft_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" class="table table-condensed pull-left ewUploadTable"><tbody class="files"></tbody></table>
+</span>
+<input type="hidden" data-table="t_daftarm" data-field="x_BuktiBayar" name="o<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" id="o<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" value="<?php echo ew_HtmlEncode($t_daftarm->BuktiBayar->OldValue) ?>">
+<?php } ?>
+<?php if ($t_daftarm->RowType == EW_ROWTYPE_EDIT) { // Edit record ?>
+<span id="el<?php echo $t_daftarm_list->RowCnt ?>_t_daftarm_BuktiBayar" class="form-group t_daftarm_BuktiBayar">
+<div id="fd_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar">
+<span title="<?php echo $t_daftarm->BuktiBayar->FldTitle() ? $t_daftarm->BuktiBayar->FldTitle() : $Language->Phrase("ChooseFile") ?>" class="btn btn-default btn-sm fileinput-button ewTooltip<?php if ($t_daftarm->BuktiBayar->ReadOnly || $t_daftarm->BuktiBayar->Disabled) echo " hide"; ?>">
+	<span><?php echo $Language->Phrase("ChooseFileBtn") ?></span>
+	<input type="file" title=" " data-table="t_daftarm" data-field="x_BuktiBayar" name="x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" id="x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar"<?php echo $t_daftarm->BuktiBayar->EditAttributes() ?>>
+</span>
+<input type="hidden" name="fn_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" id= "fn_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" value="<?php echo $t_daftarm->BuktiBayar->Upload->FileName ?>">
+<?php if (@$_POST["fa_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar"] == "0") { ?>
+<input type="hidden" name="fa_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" id= "fa_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" value="0">
+<?php } else { ?>
+<input type="hidden" name="fa_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" id= "fa_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" value="1">
+<?php } ?>
+<input type="hidden" name="fs_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" id= "fs_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" value="255">
+<input type="hidden" name="fx_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" id= "fx_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" value="<?php echo $t_daftarm->BuktiBayar->UploadAllowedFileExt ?>">
+<input type="hidden" name="fm_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" id= "fm_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" value="<?php echo $t_daftarm->BuktiBayar->UploadMaxFileSize ?>">
+</div>
+<table id="ft_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" class="table table-condensed pull-left ewUploadTable"><tbody class="files"></tbody></table>
+</span>
+<?php } ?>
+<?php if ($t_daftarm->RowType == EW_ROWTYPE_VIEW) { // View record ?>
 <span id="el<?php echo $t_daftarm_list->RowCnt ?>_t_daftarm_BuktiBayar" class="t_daftarm_BuktiBayar">
-<span<?php echo $t_daftarm->BuktiBayar->ViewAttributes() ?>>
+<span>
 <?php echo ew_GetFileViewTag($t_daftarm->BuktiBayar, $t_daftarm->BuktiBayar->ListViewValue()) ?>
 </span>
 </span>
+<?php } ?>
 </td>
 	<?php } ?>
 	<?php if ($t_daftarm->JumlahBayar->Visible) { // JumlahBayar ?>
 		<td data-name="JumlahBayar"<?php echo $t_daftarm->JumlahBayar->CellAttributes() ?>>
+<?php if ($t_daftarm->RowType == EW_ROWTYPE_ADD) { // Add record ?>
+<span id="el<?php echo $t_daftarm_list->RowCnt ?>_t_daftarm_JumlahBayar" class="form-group t_daftarm_JumlahBayar">
+<input type="text" data-table="t_daftarm" data-field="x_JumlahBayar" name="x<?php echo $t_daftarm_list->RowIndex ?>_JumlahBayar" id="x<?php echo $t_daftarm_list->RowIndex ?>_JumlahBayar" size="30" placeholder="<?php echo ew_HtmlEncode($t_daftarm->JumlahBayar->getPlaceHolder()) ?>" value="<?php echo $t_daftarm->JumlahBayar->EditValue ?>"<?php echo $t_daftarm->JumlahBayar->EditAttributes() ?>>
+</span>
+<input type="hidden" data-table="t_daftarm" data-field="x_JumlahBayar" name="o<?php echo $t_daftarm_list->RowIndex ?>_JumlahBayar" id="o<?php echo $t_daftarm_list->RowIndex ?>_JumlahBayar" value="<?php echo ew_HtmlEncode($t_daftarm->JumlahBayar->OldValue) ?>">
+<?php } ?>
+<?php if ($t_daftarm->RowType == EW_ROWTYPE_EDIT) { // Edit record ?>
+<span id="el<?php echo $t_daftarm_list->RowCnt ?>_t_daftarm_JumlahBayar" class="form-group t_daftarm_JumlahBayar">
+<input type="text" data-table="t_daftarm" data-field="x_JumlahBayar" name="x<?php echo $t_daftarm_list->RowIndex ?>_JumlahBayar" id="x<?php echo $t_daftarm_list->RowIndex ?>_JumlahBayar" size="30" placeholder="<?php echo ew_HtmlEncode($t_daftarm->JumlahBayar->getPlaceHolder()) ?>" value="<?php echo $t_daftarm->JumlahBayar->EditValue ?>"<?php echo $t_daftarm->JumlahBayar->EditAttributes() ?>>
+</span>
+<?php } ?>
+<?php if ($t_daftarm->RowType == EW_ROWTYPE_VIEW) { // View record ?>
 <span id="el<?php echo $t_daftarm_list->RowCnt ?>_t_daftarm_JumlahBayar" class="t_daftarm_JumlahBayar">
 <span<?php echo $t_daftarm->JumlahBayar->ViewAttributes() ?>>
 <?php echo $t_daftarm->JumlahBayar->ListViewValue() ?></span>
 </span>
+<?php } ?>
 </td>
 	<?php } ?>
 	<?php if ($t_daftarm->Acc->Visible) { // Acc ?>
 		<td data-name="Acc"<?php echo $t_daftarm->Acc->CellAttributes() ?>>
+<?php if ($t_daftarm->RowType == EW_ROWTYPE_ADD) { // Add record ?>
+<span id="el<?php echo $t_daftarm_list->RowCnt ?>_t_daftarm_Acc" class="form-group t_daftarm_Acc">
+<div id="tp_x<?php echo $t_daftarm_list->RowIndex ?>_Acc" class="ewTemplate"><input type="radio" data-table="t_daftarm" data-field="x_Acc" data-value-separator="<?php echo $t_daftarm->Acc->DisplayValueSeparatorAttribute() ?>" name="x<?php echo $t_daftarm_list->RowIndex ?>_Acc" id="x<?php echo $t_daftarm_list->RowIndex ?>_Acc" value="{value}"<?php echo $t_daftarm->Acc->EditAttributes() ?>></div>
+<div id="dsl_x<?php echo $t_daftarm_list->RowIndex ?>_Acc" data-repeatcolumn="5" class="ewItemList" style="display: none;"><div>
+<?php echo $t_daftarm->Acc->RadioButtonListHtml(FALSE, "x{$t_daftarm_list->RowIndex}_Acc") ?>
+</div></div>
+</span>
+<input type="hidden" data-table="t_daftarm" data-field="x_Acc" name="o<?php echo $t_daftarm_list->RowIndex ?>_Acc" id="o<?php echo $t_daftarm_list->RowIndex ?>_Acc" value="<?php echo ew_HtmlEncode($t_daftarm->Acc->OldValue) ?>">
+<?php } ?>
+<?php if ($t_daftarm->RowType == EW_ROWTYPE_EDIT) { // Edit record ?>
+<span id="el<?php echo $t_daftarm_list->RowCnt ?>_t_daftarm_Acc" class="form-group t_daftarm_Acc">
+<div id="tp_x<?php echo $t_daftarm_list->RowIndex ?>_Acc" class="ewTemplate"><input type="radio" data-table="t_daftarm" data-field="x_Acc" data-value-separator="<?php echo $t_daftarm->Acc->DisplayValueSeparatorAttribute() ?>" name="x<?php echo $t_daftarm_list->RowIndex ?>_Acc" id="x<?php echo $t_daftarm_list->RowIndex ?>_Acc" value="{value}"<?php echo $t_daftarm->Acc->EditAttributes() ?>></div>
+<div id="dsl_x<?php echo $t_daftarm_list->RowIndex ?>_Acc" data-repeatcolumn="5" class="ewItemList" style="display: none;"><div>
+<?php echo $t_daftarm->Acc->RadioButtonListHtml(FALSE, "x{$t_daftarm_list->RowIndex}_Acc") ?>
+</div></div>
+</span>
+<?php } ?>
+<?php if ($t_daftarm->RowType == EW_ROWTYPE_VIEW) { // View record ?>
 <span id="el<?php echo $t_daftarm_list->RowCnt ?>_t_daftarm_Acc" class="t_daftarm_Acc">
 <span<?php echo $t_daftarm->Acc->ViewAttributes() ?>>
 <?php echo $t_daftarm->Acc->ListViewValue() ?></span>
 </span>
+<?php } ?>
 </td>
 	<?php } ?>
 <?php
@@ -2597,14 +4140,136 @@ $t_daftarm_list->ListOptions->Render("body", "left", $t_daftarm_list->RowCnt);
 $t_daftarm_list->ListOptions->Render("body", "right", $t_daftarm_list->RowCnt);
 ?>
 	</tr>
+<?php if ($t_daftarm->RowType == EW_ROWTYPE_ADD || $t_daftarm->RowType == EW_ROWTYPE_EDIT) { ?>
+<script type="text/javascript">
+ft_daftarmlist.UpdateOpts(<?php echo $t_daftarm_list->RowIndex ?>);
+</script>
+<?php } ?>
 <?php
 	}
+	} // End delete row checking
 	if ($t_daftarm->CurrentAction <> "gridadd")
-		$t_daftarm_list->Recordset->MoveNext();
+		if (!$t_daftarm_list->Recordset->EOF) $t_daftarm_list->Recordset->MoveNext();
+}
+?>
+<?php
+	if ($t_daftarm->CurrentAction == "gridadd" || $t_daftarm->CurrentAction == "gridedit") {
+		$t_daftarm_list->RowIndex = '$rowindex$';
+		$t_daftarm_list->LoadDefaultValues();
+
+		// Set row properties
+		$t_daftarm->ResetAttrs();
+		$t_daftarm->RowAttrs = array_merge($t_daftarm->RowAttrs, array('data-rowindex'=>$t_daftarm_list->RowIndex, 'id'=>'r0_t_daftarm', 'data-rowtype'=>EW_ROWTYPE_ADD));
+		ew_AppendClass($t_daftarm->RowAttrs["class"], "ewTemplate");
+		$t_daftarm->RowType = EW_ROWTYPE_ADD;
+
+		// Render row
+		$t_daftarm_list->RenderRow();
+
+		// Render list options
+		$t_daftarm_list->RenderListOptions();
+		$t_daftarm_list->StartRowCnt = 0;
+?>
+	<tr<?php echo $t_daftarm->RowAttributes() ?>>
+<?php
+
+// Render list options (body, left)
+$t_daftarm_list->ListOptions->Render("body", "left", $t_daftarm_list->RowIndex);
+?>
+	<?php if ($t_daftarm->_UserID->Visible) { // UserID ?>
+		<td data-name="_UserID">
+<span id="el$rowindex$_t_daftarm__UserID" class="form-group t_daftarm__UserID">
+<span class="ewLookupList">
+	<span onclick="jQuery(this).parent().next().click();" tabindex="-1" class="form-control ewLookupText" id="lu_x<?php echo $t_daftarm_list->RowIndex ?>__UserID"><?php echo (strval($t_daftarm->_UserID->ViewValue) == "" ? $Language->Phrase("PleaseSelect") : $t_daftarm->_UserID->ViewValue); ?></span>
+</span>
+<button type="button" title="<?php echo ew_HtmlEncode(str_replace("%s", ew_RemoveHtml($t_daftarm->_UserID->FldCaption()), $Language->Phrase("LookupLink", TRUE))) ?>" onclick="ew_ModalLookupShow({lnk:this,el:'x<?php echo $t_daftarm_list->RowIndex ?>__UserID',m:0,n:10});" class="ewLookupBtn btn btn-default btn-sm"><span class="glyphicon glyphicon-search ewIcon"></span></button>
+<input type="hidden" data-table="t_daftarm" data-field="x__UserID" data-multiple="0" data-lookup="1" data-value-separator="<?php echo $t_daftarm->_UserID->DisplayValueSeparatorAttribute() ?>" name="x<?php echo $t_daftarm_list->RowIndex ?>__UserID" id="x<?php echo $t_daftarm_list->RowIndex ?>__UserID" value="<?php echo $t_daftarm->_UserID->CurrentValue ?>"<?php echo $t_daftarm->_UserID->EditAttributes() ?>>
+<input type="hidden" name="s_x<?php echo $t_daftarm_list->RowIndex ?>__UserID" id="s_x<?php echo $t_daftarm_list->RowIndex ?>__UserID" value="<?php echo $t_daftarm->_UserID->LookupFilterQuery() ?>">
+</span>
+<input type="hidden" data-table="t_daftarm" data-field="x__UserID" name="o<?php echo $t_daftarm_list->RowIndex ?>__UserID" id="o<?php echo $t_daftarm_list->RowIndex ?>__UserID" value="<?php echo ew_HtmlEncode($t_daftarm->_UserID->OldValue) ?>">
+</td>
+	<?php } ?>
+	<?php if ($t_daftarm->TglJam->Visible) { // TglJam ?>
+		<td data-name="TglJam">
+<span id="el$rowindex$_t_daftarm_TglJam" class="form-group t_daftarm_TglJam">
+<input type="text" data-table="t_daftarm" data-field="x_TglJam" name="x<?php echo $t_daftarm_list->RowIndex ?>_TglJam" id="x<?php echo $t_daftarm_list->RowIndex ?>_TglJam" placeholder="<?php echo ew_HtmlEncode($t_daftarm->TglJam->getPlaceHolder()) ?>" value="<?php echo $t_daftarm->TglJam->EditValue ?>"<?php echo $t_daftarm->TglJam->EditAttributes() ?>>
+<?php if (!$t_daftarm->TglJam->ReadOnly && !$t_daftarm->TglJam->Disabled && !isset($t_daftarm->TglJam->EditAttrs["readonly"]) && !isset($t_daftarm->TglJam->EditAttrs["disabled"])) { ?>
+<script type="text/javascript">
+ew_CreateCalendar("ft_daftarmlist", "x<?php echo $t_daftarm_list->RowIndex ?>_TglJam", 0);
+</script>
+<?php } ?>
+</span>
+<input type="hidden" data-table="t_daftarm" data-field="x_TglJam" name="o<?php echo $t_daftarm_list->RowIndex ?>_TglJam" id="o<?php echo $t_daftarm_list->RowIndex ?>_TglJam" value="<?php echo ew_HtmlEncode($t_daftarm->TglJam->OldValue) ?>">
+</td>
+	<?php } ?>
+	<?php if ($t_daftarm->BuktiBayar->Visible) { // BuktiBayar ?>
+		<td data-name="BuktiBayar">
+<span id="el$rowindex$_t_daftarm_BuktiBayar" class="form-group t_daftarm_BuktiBayar">
+<div id="fd_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar">
+<span title="<?php echo $t_daftarm->BuktiBayar->FldTitle() ? $t_daftarm->BuktiBayar->FldTitle() : $Language->Phrase("ChooseFile") ?>" class="btn btn-default btn-sm fileinput-button ewTooltip<?php if ($t_daftarm->BuktiBayar->ReadOnly || $t_daftarm->BuktiBayar->Disabled) echo " hide"; ?>">
+	<span><?php echo $Language->Phrase("ChooseFileBtn") ?></span>
+	<input type="file" title=" " data-table="t_daftarm" data-field="x_BuktiBayar" name="x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" id="x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar"<?php echo $t_daftarm->BuktiBayar->EditAttributes() ?>>
+</span>
+<input type="hidden" name="fn_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" id= "fn_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" value="<?php echo $t_daftarm->BuktiBayar->Upload->FileName ?>">
+<input type="hidden" name="fa_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" id= "fa_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" value="0">
+<input type="hidden" name="fs_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" id= "fs_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" value="255">
+<input type="hidden" name="fx_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" id= "fx_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" value="<?php echo $t_daftarm->BuktiBayar->UploadAllowedFileExt ?>">
+<input type="hidden" name="fm_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" id= "fm_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" value="<?php echo $t_daftarm->BuktiBayar->UploadMaxFileSize ?>">
+</div>
+<table id="ft_x<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" class="table table-condensed pull-left ewUploadTable"><tbody class="files"></tbody></table>
+</span>
+<input type="hidden" data-table="t_daftarm" data-field="x_BuktiBayar" name="o<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" id="o<?php echo $t_daftarm_list->RowIndex ?>_BuktiBayar" value="<?php echo ew_HtmlEncode($t_daftarm->BuktiBayar->OldValue) ?>">
+</td>
+	<?php } ?>
+	<?php if ($t_daftarm->JumlahBayar->Visible) { // JumlahBayar ?>
+		<td data-name="JumlahBayar">
+<span id="el$rowindex$_t_daftarm_JumlahBayar" class="form-group t_daftarm_JumlahBayar">
+<input type="text" data-table="t_daftarm" data-field="x_JumlahBayar" name="x<?php echo $t_daftarm_list->RowIndex ?>_JumlahBayar" id="x<?php echo $t_daftarm_list->RowIndex ?>_JumlahBayar" size="30" placeholder="<?php echo ew_HtmlEncode($t_daftarm->JumlahBayar->getPlaceHolder()) ?>" value="<?php echo $t_daftarm->JumlahBayar->EditValue ?>"<?php echo $t_daftarm->JumlahBayar->EditAttributes() ?>>
+</span>
+<input type="hidden" data-table="t_daftarm" data-field="x_JumlahBayar" name="o<?php echo $t_daftarm_list->RowIndex ?>_JumlahBayar" id="o<?php echo $t_daftarm_list->RowIndex ?>_JumlahBayar" value="<?php echo ew_HtmlEncode($t_daftarm->JumlahBayar->OldValue) ?>">
+</td>
+	<?php } ?>
+	<?php if ($t_daftarm->Acc->Visible) { // Acc ?>
+		<td data-name="Acc">
+<span id="el$rowindex$_t_daftarm_Acc" class="form-group t_daftarm_Acc">
+<div id="tp_x<?php echo $t_daftarm_list->RowIndex ?>_Acc" class="ewTemplate"><input type="radio" data-table="t_daftarm" data-field="x_Acc" data-value-separator="<?php echo $t_daftarm->Acc->DisplayValueSeparatorAttribute() ?>" name="x<?php echo $t_daftarm_list->RowIndex ?>_Acc" id="x<?php echo $t_daftarm_list->RowIndex ?>_Acc" value="{value}"<?php echo $t_daftarm->Acc->EditAttributes() ?>></div>
+<div id="dsl_x<?php echo $t_daftarm_list->RowIndex ?>_Acc" data-repeatcolumn="5" class="ewItemList" style="display: none;"><div>
+<?php echo $t_daftarm->Acc->RadioButtonListHtml(FALSE, "x{$t_daftarm_list->RowIndex}_Acc") ?>
+</div></div>
+</span>
+<input type="hidden" data-table="t_daftarm" data-field="x_Acc" name="o<?php echo $t_daftarm_list->RowIndex ?>_Acc" id="o<?php echo $t_daftarm_list->RowIndex ?>_Acc" value="<?php echo ew_HtmlEncode($t_daftarm->Acc->OldValue) ?>">
+</td>
+	<?php } ?>
+<?php
+
+// Render list options (body, right)
+$t_daftarm_list->ListOptions->Render("body", "right", $t_daftarm_list->RowCnt);
+?>
+<script type="text/javascript">
+ft_daftarmlist.UpdateOpts(<?php echo $t_daftarm_list->RowIndex ?>);
+</script>
+	</tr>
+<?php
 }
 ?>
 </tbody>
 </table>
+<?php } ?>
+<?php if ($t_daftarm->CurrentAction == "add" || $t_daftarm->CurrentAction == "copy") { ?>
+<input type="hidden" name="<?php echo $t_daftarm_list->FormKeyCountName ?>" id="<?php echo $t_daftarm_list->FormKeyCountName ?>" value="<?php echo $t_daftarm_list->KeyCount ?>">
+<?php } ?>
+<?php if ($t_daftarm->CurrentAction == "gridadd") { ?>
+<input type="hidden" name="a_list" id="a_list" value="gridinsert">
+<input type="hidden" name="<?php echo $t_daftarm_list->FormKeyCountName ?>" id="<?php echo $t_daftarm_list->FormKeyCountName ?>" value="<?php echo $t_daftarm_list->KeyCount ?>">
+<?php echo $t_daftarm_list->MultiSelectKey ?>
+<?php } ?>
+<?php if ($t_daftarm->CurrentAction == "edit") { ?>
+<input type="hidden" name="<?php echo $t_daftarm_list->FormKeyCountName ?>" id="<?php echo $t_daftarm_list->FormKeyCountName ?>" value="<?php echo $t_daftarm_list->KeyCount ?>">
+<?php } ?>
+<?php if ($t_daftarm->CurrentAction == "gridedit") { ?>
+<input type="hidden" name="a_list" id="a_list" value="gridupdate">
+<input type="hidden" name="<?php echo $t_daftarm_list->FormKeyCountName ?>" id="<?php echo $t_daftarm_list->FormKeyCountName ?>" value="<?php echo $t_daftarm_list->KeyCount ?>">
+<?php echo $t_daftarm_list->MultiSelectKey ?>
 <?php } ?>
 <?php if ($t_daftarm->CurrentAction == "") { ?>
 <input type="hidden" name="a_list" id="a_list" value="">

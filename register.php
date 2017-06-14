@@ -394,6 +394,8 @@ class cregister extends ct_user {
 		$this->UserName->OldValue = $this->UserName->CurrentValue;
 		$this->Password->CurrentValue = NULL;
 		$this->Password->OldValue = $this->Password->CurrentValue;
+		$this->NIM->CurrentValue = NULL;
+		$this->NIM->OldValue = $this->NIM->CurrentValue;
 	}
 
 	// Load form values
@@ -417,6 +419,9 @@ class cregister extends ct_user {
 			$this->Password->setFormValue($objForm->GetValue("x_Password"));
 		}
 		$this->Password->ConfirmValue = $objForm->GetValue("c_Password");
+		if (!$this->NIM->FldIsDetailKey) {
+			$this->NIM->setFormValue($objForm->GetValue("x_NIM"));
+		}
 	}
 
 	// Restore form values
@@ -427,6 +432,7 @@ class cregister extends ct_user {
 		$this->_Email->CurrentValue = $this->_Email->FormValue;
 		$this->UserName->CurrentValue = $this->UserName->FormValue;
 		$this->Password->CurrentValue = $this->Password->FormValue;
+		$this->NIM->CurrentValue = $this->NIM->FormValue;
 	}
 
 	// Load row based on key values
@@ -582,6 +588,11 @@ class cregister extends ct_user {
 			$this->Password->LinkCustomAttributes = "";
 			$this->Password->HrefValue = "";
 			$this->Password->TooltipValue = "";
+
+			// NIM
+			$this->NIM->LinkCustomAttributes = "";
+			$this->NIM->HrefValue = "";
+			$this->NIM->TooltipValue = "";
 		} elseif ($this->RowType == EW_ROWTYPE_ADD) { // Add row
 
 			// Nama
@@ -609,10 +620,16 @@ class cregister extends ct_user {
 			$this->UserName->PlaceHolder = ew_RemoveHtml($this->UserName->FldCaption());
 
 			// Password
-			$this->Password->EditAttrs["class"] = "form-control ewPasswordStrength";
+			$this->Password->EditAttrs["class"] = "form-control";
 			$this->Password->EditCustomAttributes = "";
 			$this->Password->EditValue = ew_HtmlEncode($this->Password->CurrentValue);
 			$this->Password->PlaceHolder = ew_RemoveHtml($this->Password->FldCaption());
+
+			// NIM
+			$this->NIM->EditAttrs["class"] = "form-control";
+			$this->NIM->EditCustomAttributes = "";
+			$this->NIM->EditValue = ew_HtmlEncode($this->NIM->CurrentValue);
+			$this->NIM->PlaceHolder = ew_RemoveHtml($this->NIM->FldCaption());
 
 			// Add refer script
 			// Nama
@@ -635,6 +652,10 @@ class cregister extends ct_user {
 			// Password
 			$this->Password->LinkCustomAttributes = "";
 			$this->Password->HrefValue = "";
+
+			// NIM
+			$this->NIM->LinkCustomAttributes = "";
+			$this->NIM->HrefValue = "";
 		}
 		if ($this->RowType == EW_ROWTYPE_ADD ||
 			$this->RowType == EW_ROWTYPE_EDIT ||
@@ -657,11 +678,23 @@ class cregister extends ct_user {
 		// Check if validation required
 		if (!EW_SERVER_VALIDATE)
 			return ($gsFormError == "");
+		if (!$this->Nama->FldIsDetailKey && !is_null($this->Nama->FormValue) && $this->Nama->FormValue == "") {
+			ew_AddMessage($gsFormError, str_replace("%s", $this->Nama->FldCaption(), $this->Nama->ReqErrMsg));
+		}
+		if (!$this->NoHandphone->FldIsDetailKey && !is_null($this->NoHandphone->FormValue) && $this->NoHandphone->FormValue == "") {
+			ew_AddMessage($gsFormError, str_replace("%s", $this->NoHandphone->FldCaption(), $this->NoHandphone->ReqErrMsg));
+		}
+		if (!$this->_Email->FldIsDetailKey && !is_null($this->_Email->FormValue) && $this->_Email->FormValue == "") {
+			ew_AddMessage($gsFormError, str_replace("%s", $this->_Email->FldCaption(), $this->_Email->ReqErrMsg));
+		}
 		if (!$this->UserName->FldIsDetailKey && !is_null($this->UserName->FormValue) && $this->UserName->FormValue == "") {
 			ew_AddMessage($gsFormError, $Language->Phrase("EnterUserName"));
 		}
 		if (!$this->Password->FldIsDetailKey && !is_null($this->Password->FormValue) && $this->Password->FormValue == "") {
 			ew_AddMessage($gsFormError, $Language->Phrase("EnterPassword"));
+		}
+		if (!$this->NIM->FldIsDetailKey && !is_null($this->NIM->FormValue) && $this->NIM->FormValue == "") {
+			ew_AddMessage($gsFormError, str_replace("%s", $this->NIM->FldCaption(), $this->NIM->ReqErrMsg));
 		}
 
 		// Return validate result
@@ -711,19 +744,22 @@ class cregister extends ct_user {
 		$rsnew = array();
 
 		// Nama
-		$this->Nama->SetDbValueDef($rsnew, $this->Nama->CurrentValue, NULL, FALSE);
+		$this->Nama->SetDbValueDef($rsnew, $this->Nama->CurrentValue, "", FALSE);
 
 		// NoHandphone
-		$this->NoHandphone->SetDbValueDef($rsnew, $this->NoHandphone->CurrentValue, NULL, FALSE);
+		$this->NoHandphone->SetDbValueDef($rsnew, $this->NoHandphone->CurrentValue, "", FALSE);
 
 		// Email
-		$this->_Email->SetDbValueDef($rsnew, $this->_Email->CurrentValue, NULL, FALSE);
+		$this->_Email->SetDbValueDef($rsnew, $this->_Email->CurrentValue, "", FALSE);
 
 		// UserName
 		$this->UserName->SetDbValueDef($rsnew, $this->UserName->CurrentValue, "", FALSE);
 
 		// Password
 		$this->Password->SetDbValueDef($rsnew, $this->Password->CurrentValue, "", FALSE);
+
+		// NIM
+		$this->NIM->SetDbValueDef($rsnew, $this->NIM->CurrentValue, "", FALSE);
 
 		// UserID
 		// Call Row Inserting event
@@ -900,17 +936,26 @@ fregister.Validate = function() {
 	for (var i = startcnt; i <= rowcnt; i++) {
 		var infix = ($k[0]) ? String(i) : "";
 		$fobj.data("rowindex", infix);
+			elm = this.GetElements("x" + infix + "_Nama");
+			if (elm && !ew_IsHidden(elm) && !ew_HasValue(elm))
+				return this.OnError(elm, "<?php echo ew_JsEncode2(str_replace("%s", $t_user->Nama->FldCaption(), $t_user->Nama->ReqErrMsg)) ?>");
+			elm = this.GetElements("x" + infix + "_NoHandphone");
+			if (elm && !ew_IsHidden(elm) && !ew_HasValue(elm))
+				return this.OnError(elm, "<?php echo ew_JsEncode2(str_replace("%s", $t_user->NoHandphone->FldCaption(), $t_user->NoHandphone->ReqErrMsg)) ?>");
+			elm = this.GetElements("x" + infix + "__Email");
+			if (elm && !ew_IsHidden(elm) && !ew_HasValue(elm))
+				return this.OnError(elm, "<?php echo ew_JsEncode2(str_replace("%s", $t_user->_Email->FldCaption(), $t_user->_Email->ReqErrMsg)) ?>");
 			elm = this.GetElements("x" + infix + "_UserName");
 			if (elm && !ew_IsHidden(elm) && !ew_HasValue(elm))
 				return this.OnError(elm, ewLanguage.Phrase("EnterUserName"));
 			elm = this.GetElements("x" + infix + "_Password");
 			if (elm && !ew_IsHidden(elm) && !ew_HasValue(elm))
 				return this.OnError(elm, ewLanguage.Phrase("EnterPassword"));
-			elm = this.GetElements("x" + infix + "_Password");
-			if (elm && $(elm).hasClass("ewPasswordStrength") && !$(elm).data("validated"))
-				return this.OnError(elm, ewLanguage.Phrase("PasswordTooSimple"));
 			if (fobj.c_Password.value != fobj.x_Password.value)
 				return this.OnError(fobj.c_Password, ewLanguage.Phrase("MismatchPassword"));
+			elm = this.GetElements("x" + infix + "_NIM");
+			if (elm && !ew_IsHidden(elm) && !ew_HasValue(elm))
+				return this.OnError(elm, "<?php echo ew_JsEncode2(str_replace("%s", $t_user->NIM->FldCaption(), $t_user->NIM->ReqErrMsg)) ?>");
 
 			// Fire Form_CustomValidate event
 			if (!this.Form_CustomValidate(fobj))
@@ -963,7 +1008,7 @@ $register->ShowMessage();
 <div>
 <?php if ($t_user->Nama->Visible) { // Nama ?>
 	<div id="r_Nama" class="form-group">
-		<label id="elh_t_user_Nama" for="x_Nama" class="col-sm-2 control-label ewLabel"><?php echo $t_user->Nama->FldCaption() ?></label>
+		<label id="elh_t_user_Nama" for="x_Nama" class="col-sm-2 control-label ewLabel"><?php echo $t_user->Nama->FldCaption() ?><?php echo $Language->Phrase("FieldRequiredIndicator") ?></label>
 		<div class="col-sm-10"><div<?php echo $t_user->Nama->CellAttributes() ?>>
 <span id="el_t_user_Nama">
 <input type="text" data-table="t_user" data-field="x_Nama" name="x_Nama" id="x_Nama" size="30" maxlength="50" placeholder="<?php echo ew_HtmlEncode($t_user->Nama->getPlaceHolder()) ?>" value="<?php echo $t_user->Nama->EditValue ?>"<?php echo $t_user->Nama->EditAttributes() ?>>
@@ -973,7 +1018,7 @@ $register->ShowMessage();
 <?php } ?>
 <?php if ($t_user->NoHandphone->Visible) { // NoHandphone ?>
 	<div id="r_NoHandphone" class="form-group">
-		<label id="elh_t_user_NoHandphone" for="x_NoHandphone" class="col-sm-2 control-label ewLabel"><?php echo $t_user->NoHandphone->FldCaption() ?></label>
+		<label id="elh_t_user_NoHandphone" for="x_NoHandphone" class="col-sm-2 control-label ewLabel"><?php echo $t_user->NoHandphone->FldCaption() ?><?php echo $Language->Phrase("FieldRequiredIndicator") ?></label>
 		<div class="col-sm-10"><div<?php echo $t_user->NoHandphone->CellAttributes() ?>>
 <span id="el_t_user_NoHandphone">
 <input type="text" data-table="t_user" data-field="x_NoHandphone" name="x_NoHandphone" id="x_NoHandphone" size="30" maxlength="24" placeholder="<?php echo ew_HtmlEncode($t_user->NoHandphone->getPlaceHolder()) ?>" value="<?php echo $t_user->NoHandphone->EditValue ?>"<?php echo $t_user->NoHandphone->EditAttributes() ?>>
@@ -983,7 +1028,7 @@ $register->ShowMessage();
 <?php } ?>
 <?php if ($t_user->_Email->Visible) { // Email ?>
 	<div id="r__Email" class="form-group">
-		<label id="elh_t_user__Email" for="x__Email" class="col-sm-2 control-label ewLabel"><?php echo $t_user->_Email->FldCaption() ?></label>
+		<label id="elh_t_user__Email" for="x__Email" class="col-sm-2 control-label ewLabel"><?php echo $t_user->_Email->FldCaption() ?><?php echo $Language->Phrase("FieldRequiredIndicator") ?></label>
 		<div class="col-sm-10"><div<?php echo $t_user->_Email->CellAttributes() ?>>
 <span id="el_t_user__Email">
 <input type="text" data-table="t_user" data-field="x__Email" name="x__Email" id="x__Email" size="30" maxlength="30" placeholder="<?php echo ew_HtmlEncode($t_user->_Email->getPlaceHolder()) ?>" value="<?php echo $t_user->_Email->EditValue ?>"<?php echo $t_user->_Email->EditAttributes() ?>>
@@ -1006,10 +1051,7 @@ $register->ShowMessage();
 		<label id="elh_t_user_Password" for="x_Password" class="col-sm-2 control-label ewLabel"><?php echo $t_user->Password->FldCaption() ?><?php echo $Language->Phrase("FieldRequiredIndicator") ?></label>
 		<div class="col-sm-10"><div<?php echo $t_user->Password->CellAttributes() ?>>
 <span id="el_t_user_Password">
-<input type="text" data-password-strength="pst_Password" data-table="t_user" data-field="x_Password" name="x_Password" id="x_Password" value="<?php echo $t_user->Password->EditValue ?>" size="30" maxlength="50" placeholder="<?php echo ew_HtmlEncode($t_user->Password->getPlaceHolder()) ?>"<?php echo $t_user->Password->EditAttributes() ?>>
-<div class="progress ewPasswordStrengthBar" id="pst_Password" style="display: none;">
-	<div class="progress-bar" role="progressbar"></div>
-</div>
+<input type="text" data-table="t_user" data-field="x_Password" name="x_Password" id="x_Password" size="30" maxlength="50" placeholder="<?php echo ew_HtmlEncode($t_user->Password->getPlaceHolder()) ?>" value="<?php echo $t_user->Password->EditValue ?>"<?php echo $t_user->Password->EditAttributes() ?>>
 </span>
 <?php echo $t_user->Password->CustomMsg ?></div></div>
 	</div>
@@ -1022,6 +1064,16 @@ $register->ShowMessage();
 <input type="text" data-table="t_user" data-field="c_Password" name="c_Password" id="c_Password" size="30" maxlength="50" placeholder="<?php echo ew_HtmlEncode($t_user->Password->getPlaceHolder()) ?>" value="<?php echo $t_user->Password->EditValue ?>"<?php echo $t_user->Password->EditAttributes() ?>>
 </span>
 </div></div>
+	</div>
+<?php } ?>
+<?php if ($t_user->NIM->Visible) { // NIM ?>
+	<div id="r_NIM" class="form-group">
+		<label id="elh_t_user_NIM" for="x_NIM" class="col-sm-2 control-label ewLabel"><?php echo $t_user->NIM->FldCaption() ?><?php echo $Language->Phrase("FieldRequiredIndicator") ?></label>
+		<div class="col-sm-10"><div<?php echo $t_user->NIM->CellAttributes() ?>>
+<span id="el_t_user_NIM">
+<input type="text" data-table="t_user" data-field="x_NIM" name="x_NIM" id="x_NIM" size="30" maxlength="50" placeholder="<?php echo ew_HtmlEncode($t_user->NIM->getPlaceHolder()) ?>" value="<?php echo $t_user->NIM->EditValue ?>"<?php echo $t_user->NIM->EditAttributes() ?>>
+</span>
+<?php echo $t_user->NIM->CustomMsg ?></div></div>
 	</div>
 <?php } ?>
 </div>

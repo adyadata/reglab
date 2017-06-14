@@ -844,8 +844,6 @@ class ct_daftard extends cTable {
 			if ($Doc->Horizontal) { // Horizontal format, write header
 				$Doc->BeginExportRow();
 				if ($ExportPageType == "view") {
-					if ($this->DaftradID->Exportable) $Doc->ExportCaption($this->DaftradID);
-					if ($this->DaftarmID->Exportable) $Doc->ExportCaption($this->DaftarmID);
 					if ($this->PraktikumID->Exportable) $Doc->ExportCaption($this->PraktikumID);
 					if ($this->Tgl->Exportable) $Doc->ExportCaption($this->Tgl);
 				} else {
@@ -884,8 +882,6 @@ class ct_daftard extends cTable {
 				if (!$Doc->ExportCustom) {
 					$Doc->BeginExportRow($RowCnt); // Allow CSS styles if enabled
 					if ($ExportPageType == "view") {
-						if ($this->DaftradID->Exportable) $Doc->ExportField($this->DaftradID);
-						if ($this->DaftarmID->Exportable) $Doc->ExportField($this->DaftarmID);
 						if ($this->PraktikumID->Exportable) $Doc->ExportField($this->PraktikumID);
 						if ($this->Tgl->Exportable) $Doc->ExportField($this->Tgl);
 					} else {

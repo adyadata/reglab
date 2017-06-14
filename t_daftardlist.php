@@ -417,9 +417,6 @@ class ct_daftard_list extends ct_daftard {
 
 		// Setup export options
 		$this->SetupExportOptions();
-		$this->DaftradID->SetVisibility();
-		$this->DaftradID->Visible = !$this->IsAdd() && !$this->IsCopy() && !$this->IsGridAdd();
-		$this->DaftarmID->SetVisibility();
 		$this->PraktikumID->SetVisibility();
 		$this->Tgl->SetVisibility();
 
@@ -1134,8 +1131,6 @@ class ct_daftard_list extends ct_daftard {
 	// Check if empty row
 	function EmptyRow() {
 		global $objForm;
-		if ($objForm->HasValue("x_DaftarmID") && $objForm->HasValue("o_DaftarmID") && $this->DaftarmID->CurrentValue <> $this->DaftarmID->OldValue)
-			return FALSE;
 		if ($objForm->HasValue("x_PraktikumID") && $objForm->HasValue("o_PraktikumID") && $this->PraktikumID->CurrentValue <> $this->PraktikumID->OldValue)
 			return FALSE;
 		if ($objForm->HasValue("x_Tgl") && $objForm->HasValue("o_Tgl") && $this->Tgl->CurrentValue <> $this->Tgl->OldValue)
@@ -1221,8 +1216,6 @@ class ct_daftard_list extends ct_daftard {
 		if (@$_GET["order"] <> "") {
 			$this->CurrentOrder = ew_StripSlashes(@$_GET["order"]);
 			$this->CurrentOrderType = @$_GET["ordertype"];
-			$this->UpdateSort($this->DaftradID, $bCtrl); // DaftradID
-			$this->UpdateSort($this->DaftarmID, $bCtrl); // DaftarmID
 			$this->UpdateSort($this->PraktikumID, $bCtrl); // PraktikumID
 			$this->UpdateSort($this->Tgl, $bCtrl); // Tgl
 			$this->setStartRecordNumber(1); // Reset start position
@@ -1262,8 +1255,6 @@ class ct_daftard_list extends ct_daftard {
 				$sOrderBy = "";
 				$this->setSessionOrderBy($sOrderBy);
 				$this->setSessionOrderByList($sOrderBy);
-				$this->DaftradID->setSort("");
-				$this->DaftarmID->setSort("");
 				$this->PraktikumID->setSort("");
 				$this->Tgl->setSort("");
 			}
@@ -1781,10 +1772,6 @@ class ct_daftard_list extends ct_daftard {
 
 	// Load default values
 	function LoadDefaultValues() {
-		$this->DaftradID->CurrentValue = NULL;
-		$this->DaftradID->OldValue = $this->DaftradID->CurrentValue;
-		$this->DaftarmID->CurrentValue = NULL;
-		$this->DaftarmID->OldValue = $this->DaftarmID->CurrentValue;
 		$this->PraktikumID->CurrentValue = NULL;
 		$this->PraktikumID->OldValue = $this->PraktikumID->CurrentValue;
 		$this->Tgl->CurrentValue = NULL;
@@ -1796,12 +1783,6 @@ class ct_daftard_list extends ct_daftard {
 
 		// Load from form
 		global $objForm;
-		if (!$this->DaftradID->FldIsDetailKey && $this->CurrentAction <> "gridadd" && $this->CurrentAction <> "add")
-			$this->DaftradID->setFormValue($objForm->GetValue("x_DaftradID"));
-		if (!$this->DaftarmID->FldIsDetailKey) {
-			$this->DaftarmID->setFormValue($objForm->GetValue("x_DaftarmID"));
-		}
-		$this->DaftarmID->setOldValue($objForm->GetValue("o_DaftarmID"));
 		if (!$this->PraktikumID->FldIsDetailKey) {
 			$this->PraktikumID->setFormValue($objForm->GetValue("x_PraktikumID"));
 		}
@@ -1811,6 +1792,8 @@ class ct_daftard_list extends ct_daftard {
 			$this->Tgl->CurrentValue = ew_UnFormatDateTime($this->Tgl->CurrentValue, 0);
 		}
 		$this->Tgl->setOldValue($objForm->GetValue("o_Tgl"));
+		if (!$this->DaftradID->FldIsDetailKey && $this->CurrentAction <> "gridadd" && $this->CurrentAction <> "add")
+			$this->DaftradID->setFormValue($objForm->GetValue("x_DaftradID"));
 	}
 
 	// Restore form values
@@ -1818,7 +1801,6 @@ class ct_daftard_list extends ct_daftard {
 		global $objForm;
 		if ($this->CurrentAction <> "gridadd" && $this->CurrentAction <> "add")
 			$this->DaftradID->CurrentValue = $this->DaftradID->FormValue;
-		$this->DaftarmID->CurrentValue = $this->DaftarmID->FormValue;
 		$this->PraktikumID->CurrentValue = $this->PraktikumID->FormValue;
 		$this->Tgl->CurrentValue = $this->Tgl->FormValue;
 		$this->Tgl->CurrentValue = ew_UnFormatDateTime($this->Tgl->CurrentValue, 0);
@@ -1987,16 +1969,6 @@ class ct_daftard_list extends ct_daftard {
 		$this->Tgl->ViewValue = ew_FormatDateTime($this->Tgl->ViewValue, 0);
 		$this->Tgl->ViewCustomAttributes = "";
 
-			// DaftradID
-			$this->DaftradID->LinkCustomAttributes = "";
-			$this->DaftradID->HrefValue = "";
-			$this->DaftradID->TooltipValue = "";
-
-			// DaftarmID
-			$this->DaftarmID->LinkCustomAttributes = "";
-			$this->DaftarmID->HrefValue = "";
-			$this->DaftarmID->TooltipValue = "";
-
 			// PraktikumID
 			$this->PraktikumID->LinkCustomAttributes = "";
 			$this->PraktikumID->HrefValue = "";
@@ -2007,21 +1979,6 @@ class ct_daftard_list extends ct_daftard {
 			$this->Tgl->HrefValue = "";
 			$this->Tgl->TooltipValue = "";
 		} elseif ($this->RowType == EW_ROWTYPE_ADD) { // Add row
-
-			// DaftradID
-			// DaftarmID
-
-			$this->DaftarmID->EditAttrs["class"] = "form-control";
-			$this->DaftarmID->EditCustomAttributes = "";
-			if ($this->DaftarmID->getSessionValue() <> "") {
-				$this->DaftarmID->CurrentValue = $this->DaftarmID->getSessionValue();
-				$this->DaftarmID->OldValue = $this->DaftarmID->CurrentValue;
-			$this->DaftarmID->ViewValue = $this->DaftarmID->CurrentValue;
-			$this->DaftarmID->ViewCustomAttributes = "";
-			} else {
-			$this->DaftarmID->EditValue = ew_HtmlEncode($this->DaftarmID->CurrentValue);
-			$this->DaftarmID->PlaceHolder = ew_RemoveHtml($this->DaftarmID->FldCaption());
-			}
 
 			// PraktikumID
 			$this->PraktikumID->EditCustomAttributes = "";
@@ -2060,16 +2017,8 @@ class ct_daftard_list extends ct_daftard {
 			$this->Tgl->PlaceHolder = ew_RemoveHtml($this->Tgl->FldCaption());
 
 			// Add refer script
-			// DaftradID
-
-			$this->DaftradID->LinkCustomAttributes = "";
-			$this->DaftradID->HrefValue = "";
-
-			// DaftarmID
-			$this->DaftarmID->LinkCustomAttributes = "";
-			$this->DaftarmID->HrefValue = "";
-
 			// PraktikumID
+
 			$this->PraktikumID->LinkCustomAttributes = "";
 			$this->PraktikumID->HrefValue = "";
 
@@ -2077,25 +2026,6 @@ class ct_daftard_list extends ct_daftard {
 			$this->Tgl->LinkCustomAttributes = "";
 			$this->Tgl->HrefValue = "";
 		} elseif ($this->RowType == EW_ROWTYPE_EDIT) { // Edit row
-
-			// DaftradID
-			$this->DaftradID->EditAttrs["class"] = "form-control";
-			$this->DaftradID->EditCustomAttributes = "";
-			$this->DaftradID->EditValue = $this->DaftradID->CurrentValue;
-			$this->DaftradID->ViewCustomAttributes = "";
-
-			// DaftarmID
-			$this->DaftarmID->EditAttrs["class"] = "form-control";
-			$this->DaftarmID->EditCustomAttributes = "";
-			if ($this->DaftarmID->getSessionValue() <> "") {
-				$this->DaftarmID->CurrentValue = $this->DaftarmID->getSessionValue();
-				$this->DaftarmID->OldValue = $this->DaftarmID->CurrentValue;
-			$this->DaftarmID->ViewValue = $this->DaftarmID->CurrentValue;
-			$this->DaftarmID->ViewCustomAttributes = "";
-			} else {
-			$this->DaftarmID->EditValue = ew_HtmlEncode($this->DaftarmID->CurrentValue);
-			$this->DaftarmID->PlaceHolder = ew_RemoveHtml($this->DaftarmID->FldCaption());
-			}
 
 			// PraktikumID
 			$this->PraktikumID->EditCustomAttributes = "";
@@ -2134,16 +2064,8 @@ class ct_daftard_list extends ct_daftard {
 			$this->Tgl->PlaceHolder = ew_RemoveHtml($this->Tgl->FldCaption());
 
 			// Edit refer script
-			// DaftradID
-
-			$this->DaftradID->LinkCustomAttributes = "";
-			$this->DaftradID->HrefValue = "";
-
-			// DaftarmID
-			$this->DaftarmID->LinkCustomAttributes = "";
-			$this->DaftarmID->HrefValue = "";
-
 			// PraktikumID
+
 			$this->PraktikumID->LinkCustomAttributes = "";
 			$this->PraktikumID->HrefValue = "";
 
@@ -2172,12 +2094,6 @@ class ct_daftard_list extends ct_daftard {
 		// Check if validation required
 		if (!EW_SERVER_VALIDATE)
 			return ($gsFormError == "");
-		if (!$this->DaftarmID->FldIsDetailKey && !is_null($this->DaftarmID->FormValue) && $this->DaftarmID->FormValue == "") {
-			ew_AddMessage($gsFormError, str_replace("%s", $this->DaftarmID->FldCaption(), $this->DaftarmID->ReqErrMsg));
-		}
-		if (!ew_CheckInteger($this->DaftarmID->FormValue)) {
-			ew_AddMessage($gsFormError, $this->DaftarmID->FldErrMsg());
-		}
 		if (!$this->PraktikumID->FldIsDetailKey && !is_null($this->PraktikumID->FormValue) && $this->PraktikumID->FormValue == "") {
 			ew_AddMessage($gsFormError, str_replace("%s", $this->PraktikumID->FldCaption(), $this->PraktikumID->ReqErrMsg));
 		}
@@ -2305,9 +2221,6 @@ class ct_daftard_list extends ct_daftard {
 			$this->LoadDbValues($rsold);
 			$rsnew = array();
 
-			// DaftarmID
-			$this->DaftarmID->SetDbValueDef($rsnew, $this->DaftarmID->CurrentValue, 0, $this->DaftarmID->ReadOnly);
-
 			// PraktikumID
 			$this->PraktikumID->SetDbValueDef($rsnew, $this->PraktikumID->CurrentValue, 0, $this->PraktikumID->ReadOnly);
 
@@ -2357,14 +2270,16 @@ class ct_daftard_list extends ct_daftard {
 		}
 		$rsnew = array();
 
-		// DaftarmID
-		$this->DaftarmID->SetDbValueDef($rsnew, $this->DaftarmID->CurrentValue, 0, FALSE);
-
 		// PraktikumID
 		$this->PraktikumID->SetDbValueDef($rsnew, $this->PraktikumID->CurrentValue, 0, FALSE);
 
 		// Tgl
 		$this->Tgl->SetDbValueDef($rsnew, ew_UnFormatDateTime($this->Tgl->CurrentValue, 0), ew_CurrentDate(), FALSE);
+
+		// DaftarmID
+		if ($this->DaftarmID->getSessionValue() <> "") {
+			$rsnew['DaftarmID'] = $this->DaftarmID->getSessionValue();
+		}
 
 		// Call Row Inserting event
 		$rs = ($rsold == NULL) ? NULL : $rsold->fields;
@@ -2954,12 +2869,6 @@ ft_daftardlist.Validate = function() {
 		var checkrow = (gridinsert) ? !this.EmptyRow(infix) : true;
 		if (checkrow) {
 			addcnt++;
-			elm = this.GetElements("x" + infix + "_DaftarmID");
-			if (elm && !ew_IsHidden(elm) && !ew_HasValue(elm))
-				return this.OnError(elm, "<?php echo ew_JsEncode2(str_replace("%s", $t_daftard->DaftarmID->FldCaption(), $t_daftard->DaftarmID->ReqErrMsg)) ?>");
-			elm = this.GetElements("x" + infix + "_DaftarmID");
-			if (elm && !ew_CheckInteger(elm.value))
-				return this.OnError(elm, "<?php echo ew_JsEncode2($t_daftard->DaftarmID->FldErrMsg()) ?>");
 			elm = this.GetElements("x" + infix + "_PraktikumID");
 			if (elm && !ew_IsHidden(elm) && !ew_HasValue(elm))
 				return this.OnError(elm, "<?php echo ew_JsEncode2(str_replace("%s", $t_daftard->PraktikumID->FldCaption(), $t_daftard->PraktikumID->ReqErrMsg)) ?>");
@@ -2985,7 +2894,6 @@ ft_daftardlist.Validate = function() {
 // Check empty row
 ft_daftardlist.EmptyRow = function(infix) {
 	var fobj = this.Form;
-	if (ew_ValueChanged(fobj, infix, "DaftarmID", false)) return false;
 	if (ew_ValueChanged(fobj, infix, "PraktikumID", false)) return false;
 	if (ew_ValueChanged(fobj, infix, "Tgl", false)) return false;
 	return true;
@@ -3180,24 +3088,6 @@ $t_daftard_list->RenderListOptions();
 // Render list options (header, left)
 $t_daftard_list->ListOptions->Render("header", "left");
 ?>
-<?php if ($t_daftard->DaftradID->Visible) { // DaftradID ?>
-	<?php if ($t_daftard->SortUrl($t_daftard->DaftradID) == "") { ?>
-		<th data-name="DaftradID"><div id="elh_t_daftard_DaftradID" class="t_daftard_DaftradID"><div class="ewTableHeaderCaption"><?php echo $t_daftard->DaftradID->FldCaption() ?></div></div></th>
-	<?php } else { ?>
-		<th data-name="DaftradID"><div class="ewPointer" onclick="ew_Sort(event,'<?php echo $t_daftard->SortUrl($t_daftard->DaftradID) ?>',2);"><div id="elh_t_daftard_DaftradID" class="t_daftard_DaftradID">
-			<div class="ewTableHeaderBtn"><span class="ewTableHeaderCaption"><?php echo $t_daftard->DaftradID->FldCaption() ?></span><span class="ewTableHeaderSort"><?php if ($t_daftard->DaftradID->getSort() == "ASC") { ?><span class="caret ewSortUp"></span><?php } elseif ($t_daftard->DaftradID->getSort() == "DESC") { ?><span class="caret"></span><?php } ?></span></div>
-        </div></div></th>
-	<?php } ?>
-<?php } ?>		
-<?php if ($t_daftard->DaftarmID->Visible) { // DaftarmID ?>
-	<?php if ($t_daftard->SortUrl($t_daftard->DaftarmID) == "") { ?>
-		<th data-name="DaftarmID"><div id="elh_t_daftard_DaftarmID" class="t_daftard_DaftarmID"><div class="ewTableHeaderCaption"><?php echo $t_daftard->DaftarmID->FldCaption() ?></div></div></th>
-	<?php } else { ?>
-		<th data-name="DaftarmID"><div class="ewPointer" onclick="ew_Sort(event,'<?php echo $t_daftard->SortUrl($t_daftard->DaftarmID) ?>',2);"><div id="elh_t_daftard_DaftarmID" class="t_daftard_DaftarmID">
-			<div class="ewTableHeaderBtn"><span class="ewTableHeaderCaption"><?php echo $t_daftard->DaftarmID->FldCaption() ?></span><span class="ewTableHeaderSort"><?php if ($t_daftard->DaftarmID->getSort() == "ASC") { ?><span class="caret ewSortUp"></span><?php } elseif ($t_daftard->DaftarmID->getSort() == "DESC") { ?><span class="caret"></span><?php } ?></span></div>
-        </div></div></th>
-	<?php } ?>
-<?php } ?>		
 <?php if ($t_daftard->PraktikumID->Visible) { // PraktikumID ?>
 	<?php if ($t_daftard->SortUrl($t_daftard->PraktikumID) == "") { ?>
 		<th data-name="PraktikumID"><div id="elh_t_daftard_PraktikumID" class="t_daftard_PraktikumID"><div class="ewTableHeaderCaption"><?php echo $t_daftard->PraktikumID->FldCaption() ?></div></div></th>
@@ -3253,27 +3143,6 @@ $t_daftard_list->ListOptions->Render("header", "right");
 // Render list options (body, left)
 $t_daftard_list->ListOptions->Render("body", "left", $t_daftard_list->RowCnt);
 ?>
-	<?php if ($t_daftard->DaftradID->Visible) { // DaftradID ?>
-		<td data-name="DaftradID">
-<input type="hidden" data-table="t_daftard" data-field="x_DaftradID" name="o<?php echo $t_daftard_list->RowIndex ?>_DaftradID" id="o<?php echo $t_daftard_list->RowIndex ?>_DaftradID" value="<?php echo ew_HtmlEncode($t_daftard->DaftradID->OldValue) ?>">
-</td>
-	<?php } ?>
-	<?php if ($t_daftard->DaftarmID->Visible) { // DaftarmID ?>
-		<td data-name="DaftarmID">
-<?php if ($t_daftard->DaftarmID->getSessionValue() <> "") { ?>
-<span id="el<?php echo $t_daftard_list->RowCnt ?>_t_daftard_DaftarmID" class="form-group t_daftard_DaftarmID">
-<span<?php echo $t_daftard->DaftarmID->ViewAttributes() ?>>
-<p class="form-control-static"><?php echo $t_daftard->DaftarmID->ViewValue ?></p></span>
-</span>
-<input type="hidden" id="x<?php echo $t_daftard_list->RowIndex ?>_DaftarmID" name="x<?php echo $t_daftard_list->RowIndex ?>_DaftarmID" value="<?php echo ew_HtmlEncode($t_daftard->DaftarmID->CurrentValue) ?>">
-<?php } else { ?>
-<span id="el<?php echo $t_daftard_list->RowCnt ?>_t_daftard_DaftarmID" class="form-group t_daftard_DaftarmID">
-<input type="text" data-table="t_daftard" data-field="x_DaftarmID" name="x<?php echo $t_daftard_list->RowIndex ?>_DaftarmID" id="x<?php echo $t_daftard_list->RowIndex ?>_DaftarmID" size="30" placeholder="<?php echo ew_HtmlEncode($t_daftard->DaftarmID->getPlaceHolder()) ?>" value="<?php echo $t_daftard->DaftarmID->EditValue ?>"<?php echo $t_daftard->DaftarmID->EditAttributes() ?>>
-</span>
-<?php } ?>
-<input type="hidden" data-table="t_daftard" data-field="x_DaftarmID" name="o<?php echo $t_daftard_list->RowIndex ?>_DaftarmID" id="o<?php echo $t_daftard_list->RowIndex ?>_DaftarmID" value="<?php echo ew_HtmlEncode($t_daftard->DaftarmID->OldValue) ?>">
-</td>
-	<?php } ?>
 	<?php if ($t_daftard->PraktikumID->Visible) { // PraktikumID ?>
 		<td data-name="PraktikumID">
 <span id="el<?php echo $t_daftard_list->RowCnt ?>_t_daftard_PraktikumID" class="form-group t_daftard_PraktikumID">
@@ -3291,6 +3160,11 @@ $t_daftard_list->ListOptions->Render("body", "left", $t_daftard_list->RowCnt);
 		<td data-name="Tgl">
 <span id="el<?php echo $t_daftard_list->RowCnt ?>_t_daftard_Tgl" class="form-group t_daftard_Tgl">
 <input type="text" data-table="t_daftard" data-field="x_Tgl" name="x<?php echo $t_daftard_list->RowIndex ?>_Tgl" id="x<?php echo $t_daftard_list->RowIndex ?>_Tgl" placeholder="<?php echo ew_HtmlEncode($t_daftard->Tgl->getPlaceHolder()) ?>" value="<?php echo $t_daftard->Tgl->EditValue ?>"<?php echo $t_daftard->Tgl->EditAttributes() ?>>
+<?php if (!$t_daftard->Tgl->ReadOnly && !$t_daftard->Tgl->Disabled && !isset($t_daftard->Tgl->EditAttrs["readonly"]) && !isset($t_daftard->Tgl->EditAttrs["disabled"])) { ?>
+<script type="text/javascript">
+ew_CreateCalendar("ft_daftardlist", "x<?php echo $t_daftard_list->RowIndex ?>_Tgl", 0);
+</script>
+<?php } ?>
 </span>
 <input type="hidden" data-table="t_daftard" data-field="x_Tgl" name="o<?php echo $t_daftard_list->RowIndex ?>_Tgl" id="o<?php echo $t_daftard_list->RowIndex ?>_Tgl" value="<?php echo ew_HtmlEncode($t_daftard->Tgl->OldValue) ?>">
 </td>
@@ -3420,63 +3294,6 @@ while ($t_daftard_list->RecCnt < $t_daftard_list->StopRec) {
 // Render list options (body, left)
 $t_daftard_list->ListOptions->Render("body", "left", $t_daftard_list->RowCnt);
 ?>
-	<?php if ($t_daftard->DaftradID->Visible) { // DaftradID ?>
-		<td data-name="DaftradID"<?php echo $t_daftard->DaftradID->CellAttributes() ?>>
-<?php if ($t_daftard->RowType == EW_ROWTYPE_ADD) { // Add record ?>
-<input type="hidden" data-table="t_daftard" data-field="x_DaftradID" name="o<?php echo $t_daftard_list->RowIndex ?>_DaftradID" id="o<?php echo $t_daftard_list->RowIndex ?>_DaftradID" value="<?php echo ew_HtmlEncode($t_daftard->DaftradID->OldValue) ?>">
-<?php } ?>
-<?php if ($t_daftard->RowType == EW_ROWTYPE_EDIT) { // Edit record ?>
-<span id="el<?php echo $t_daftard_list->RowCnt ?>_t_daftard_DaftradID" class="form-group t_daftard_DaftradID">
-<span<?php echo $t_daftard->DaftradID->ViewAttributes() ?>>
-<p class="form-control-static"><?php echo $t_daftard->DaftradID->EditValue ?></p></span>
-</span>
-<input type="hidden" data-table="t_daftard" data-field="x_DaftradID" name="x<?php echo $t_daftard_list->RowIndex ?>_DaftradID" id="x<?php echo $t_daftard_list->RowIndex ?>_DaftradID" value="<?php echo ew_HtmlEncode($t_daftard->DaftradID->CurrentValue) ?>">
-<?php } ?>
-<?php if ($t_daftard->RowType == EW_ROWTYPE_VIEW) { // View record ?>
-<span id="el<?php echo $t_daftard_list->RowCnt ?>_t_daftard_DaftradID" class="t_daftard_DaftradID">
-<span<?php echo $t_daftard->DaftradID->ViewAttributes() ?>>
-<?php echo $t_daftard->DaftradID->ListViewValue() ?></span>
-</span>
-<?php } ?>
-<a id="<?php echo $t_daftard_list->PageObjName . "_row_" . $t_daftard_list->RowCnt ?>"></a></td>
-	<?php } ?>
-	<?php if ($t_daftard->DaftarmID->Visible) { // DaftarmID ?>
-		<td data-name="DaftarmID"<?php echo $t_daftard->DaftarmID->CellAttributes() ?>>
-<?php if ($t_daftard->RowType == EW_ROWTYPE_ADD) { // Add record ?>
-<?php if ($t_daftard->DaftarmID->getSessionValue() <> "") { ?>
-<span id="el<?php echo $t_daftard_list->RowCnt ?>_t_daftard_DaftarmID" class="form-group t_daftard_DaftarmID">
-<span<?php echo $t_daftard->DaftarmID->ViewAttributes() ?>>
-<p class="form-control-static"><?php echo $t_daftard->DaftarmID->ViewValue ?></p></span>
-</span>
-<input type="hidden" id="x<?php echo $t_daftard_list->RowIndex ?>_DaftarmID" name="x<?php echo $t_daftard_list->RowIndex ?>_DaftarmID" value="<?php echo ew_HtmlEncode($t_daftard->DaftarmID->CurrentValue) ?>">
-<?php } else { ?>
-<span id="el<?php echo $t_daftard_list->RowCnt ?>_t_daftard_DaftarmID" class="form-group t_daftard_DaftarmID">
-<input type="text" data-table="t_daftard" data-field="x_DaftarmID" name="x<?php echo $t_daftard_list->RowIndex ?>_DaftarmID" id="x<?php echo $t_daftard_list->RowIndex ?>_DaftarmID" size="30" placeholder="<?php echo ew_HtmlEncode($t_daftard->DaftarmID->getPlaceHolder()) ?>" value="<?php echo $t_daftard->DaftarmID->EditValue ?>"<?php echo $t_daftard->DaftarmID->EditAttributes() ?>>
-</span>
-<?php } ?>
-<input type="hidden" data-table="t_daftard" data-field="x_DaftarmID" name="o<?php echo $t_daftard_list->RowIndex ?>_DaftarmID" id="o<?php echo $t_daftard_list->RowIndex ?>_DaftarmID" value="<?php echo ew_HtmlEncode($t_daftard->DaftarmID->OldValue) ?>">
-<?php } ?>
-<?php if ($t_daftard->RowType == EW_ROWTYPE_EDIT) { // Edit record ?>
-<?php if ($t_daftard->DaftarmID->getSessionValue() <> "") { ?>
-<span id="el<?php echo $t_daftard_list->RowCnt ?>_t_daftard_DaftarmID" class="form-group t_daftard_DaftarmID">
-<span<?php echo $t_daftard->DaftarmID->ViewAttributes() ?>>
-<p class="form-control-static"><?php echo $t_daftard->DaftarmID->ViewValue ?></p></span>
-</span>
-<input type="hidden" id="x<?php echo $t_daftard_list->RowIndex ?>_DaftarmID" name="x<?php echo $t_daftard_list->RowIndex ?>_DaftarmID" value="<?php echo ew_HtmlEncode($t_daftard->DaftarmID->CurrentValue) ?>">
-<?php } else { ?>
-<span id="el<?php echo $t_daftard_list->RowCnt ?>_t_daftard_DaftarmID" class="form-group t_daftard_DaftarmID">
-<input type="text" data-table="t_daftard" data-field="x_DaftarmID" name="x<?php echo $t_daftard_list->RowIndex ?>_DaftarmID" id="x<?php echo $t_daftard_list->RowIndex ?>_DaftarmID" size="30" placeholder="<?php echo ew_HtmlEncode($t_daftard->DaftarmID->getPlaceHolder()) ?>" value="<?php echo $t_daftard->DaftarmID->EditValue ?>"<?php echo $t_daftard->DaftarmID->EditAttributes() ?>>
-</span>
-<?php } ?>
-<?php } ?>
-<?php if ($t_daftard->RowType == EW_ROWTYPE_VIEW) { // View record ?>
-<span id="el<?php echo $t_daftard_list->RowCnt ?>_t_daftard_DaftarmID" class="t_daftard_DaftarmID">
-<span<?php echo $t_daftard->DaftarmID->ViewAttributes() ?>>
-<?php echo $t_daftard->DaftarmID->ListViewValue() ?></span>
-</span>
-<?php } ?>
-</td>
-	<?php } ?>
 	<?php if ($t_daftard->PraktikumID->Visible) { // PraktikumID ?>
 		<td data-name="PraktikumID"<?php echo $t_daftard->PraktikumID->CellAttributes() ?>>
 <?php if ($t_daftard->RowType == EW_ROWTYPE_ADD) { // Add record ?>
@@ -3506,19 +3323,36 @@ $t_daftard_list->ListOptions->Render("body", "left", $t_daftard_list->RowCnt);
 <?php echo $t_daftard->PraktikumID->ListViewValue() ?></span>
 </span>
 <?php } ?>
-</td>
+<a id="<?php echo $t_daftard_list->PageObjName . "_row_" . $t_daftard_list->RowCnt ?>"></a></td>
 	<?php } ?>
+<?php if ($t_daftard->RowType == EW_ROWTYPE_ADD) { // Add record ?>
+<input type="hidden" data-table="t_daftard" data-field="x_DaftradID" name="x<?php echo $t_daftard_list->RowIndex ?>_DaftradID" id="x<?php echo $t_daftard_list->RowIndex ?>_DaftradID" value="<?php echo ew_HtmlEncode($t_daftard->DaftradID->CurrentValue) ?>">
+<input type="hidden" data-table="t_daftard" data-field="x_DaftradID" name="o<?php echo $t_daftard_list->RowIndex ?>_DaftradID" id="o<?php echo $t_daftard_list->RowIndex ?>_DaftradID" value="<?php echo ew_HtmlEncode($t_daftard->DaftradID->OldValue) ?>">
+<?php } ?>
+<?php if ($t_daftard->RowType == EW_ROWTYPE_EDIT || $t_daftard->CurrentMode == "edit") { ?>
+<input type="hidden" data-table="t_daftard" data-field="x_DaftradID" name="x<?php echo $t_daftard_list->RowIndex ?>_DaftradID" id="x<?php echo $t_daftard_list->RowIndex ?>_DaftradID" value="<?php echo ew_HtmlEncode($t_daftard->DaftradID->CurrentValue) ?>">
+<?php } ?>
 	<?php if ($t_daftard->Tgl->Visible) { // Tgl ?>
 		<td data-name="Tgl"<?php echo $t_daftard->Tgl->CellAttributes() ?>>
 <?php if ($t_daftard->RowType == EW_ROWTYPE_ADD) { // Add record ?>
 <span id="el<?php echo $t_daftard_list->RowCnt ?>_t_daftard_Tgl" class="form-group t_daftard_Tgl">
 <input type="text" data-table="t_daftard" data-field="x_Tgl" name="x<?php echo $t_daftard_list->RowIndex ?>_Tgl" id="x<?php echo $t_daftard_list->RowIndex ?>_Tgl" placeholder="<?php echo ew_HtmlEncode($t_daftard->Tgl->getPlaceHolder()) ?>" value="<?php echo $t_daftard->Tgl->EditValue ?>"<?php echo $t_daftard->Tgl->EditAttributes() ?>>
+<?php if (!$t_daftard->Tgl->ReadOnly && !$t_daftard->Tgl->Disabled && !isset($t_daftard->Tgl->EditAttrs["readonly"]) && !isset($t_daftard->Tgl->EditAttrs["disabled"])) { ?>
+<script type="text/javascript">
+ew_CreateCalendar("ft_daftardlist", "x<?php echo $t_daftard_list->RowIndex ?>_Tgl", 0);
+</script>
+<?php } ?>
 </span>
 <input type="hidden" data-table="t_daftard" data-field="x_Tgl" name="o<?php echo $t_daftard_list->RowIndex ?>_Tgl" id="o<?php echo $t_daftard_list->RowIndex ?>_Tgl" value="<?php echo ew_HtmlEncode($t_daftard->Tgl->OldValue) ?>">
 <?php } ?>
 <?php if ($t_daftard->RowType == EW_ROWTYPE_EDIT) { // Edit record ?>
 <span id="el<?php echo $t_daftard_list->RowCnt ?>_t_daftard_Tgl" class="form-group t_daftard_Tgl">
 <input type="text" data-table="t_daftard" data-field="x_Tgl" name="x<?php echo $t_daftard_list->RowIndex ?>_Tgl" id="x<?php echo $t_daftard_list->RowIndex ?>_Tgl" placeholder="<?php echo ew_HtmlEncode($t_daftard->Tgl->getPlaceHolder()) ?>" value="<?php echo $t_daftard->Tgl->EditValue ?>"<?php echo $t_daftard->Tgl->EditAttributes() ?>>
+<?php if (!$t_daftard->Tgl->ReadOnly && !$t_daftard->Tgl->Disabled && !isset($t_daftard->Tgl->EditAttrs["readonly"]) && !isset($t_daftard->Tgl->EditAttrs["disabled"])) { ?>
+<script type="text/javascript">
+ew_CreateCalendar("ft_daftardlist", "x<?php echo $t_daftard_list->RowIndex ?>_Tgl", 0);
+</script>
+<?php } ?>
 </span>
 <?php } ?>
 <?php if ($t_daftard->RowType == EW_ROWTYPE_VIEW) { // View record ?>
@@ -3571,27 +3405,6 @@ ft_daftardlist.UpdateOpts(<?php echo $t_daftard_list->RowIndex ?>);
 // Render list options (body, left)
 $t_daftard_list->ListOptions->Render("body", "left", $t_daftard_list->RowIndex);
 ?>
-	<?php if ($t_daftard->DaftradID->Visible) { // DaftradID ?>
-		<td data-name="DaftradID">
-<input type="hidden" data-table="t_daftard" data-field="x_DaftradID" name="o<?php echo $t_daftard_list->RowIndex ?>_DaftradID" id="o<?php echo $t_daftard_list->RowIndex ?>_DaftradID" value="<?php echo ew_HtmlEncode($t_daftard->DaftradID->OldValue) ?>">
-</td>
-	<?php } ?>
-	<?php if ($t_daftard->DaftarmID->Visible) { // DaftarmID ?>
-		<td data-name="DaftarmID">
-<?php if ($t_daftard->DaftarmID->getSessionValue() <> "") { ?>
-<span id="el$rowindex$_t_daftard_DaftarmID" class="form-group t_daftard_DaftarmID">
-<span<?php echo $t_daftard->DaftarmID->ViewAttributes() ?>>
-<p class="form-control-static"><?php echo $t_daftard->DaftarmID->ViewValue ?></p></span>
-</span>
-<input type="hidden" id="x<?php echo $t_daftard_list->RowIndex ?>_DaftarmID" name="x<?php echo $t_daftard_list->RowIndex ?>_DaftarmID" value="<?php echo ew_HtmlEncode($t_daftard->DaftarmID->CurrentValue) ?>">
-<?php } else { ?>
-<span id="el$rowindex$_t_daftard_DaftarmID" class="form-group t_daftard_DaftarmID">
-<input type="text" data-table="t_daftard" data-field="x_DaftarmID" name="x<?php echo $t_daftard_list->RowIndex ?>_DaftarmID" id="x<?php echo $t_daftard_list->RowIndex ?>_DaftarmID" size="30" placeholder="<?php echo ew_HtmlEncode($t_daftard->DaftarmID->getPlaceHolder()) ?>" value="<?php echo $t_daftard->DaftarmID->EditValue ?>"<?php echo $t_daftard->DaftarmID->EditAttributes() ?>>
-</span>
-<?php } ?>
-<input type="hidden" data-table="t_daftard" data-field="x_DaftarmID" name="o<?php echo $t_daftard_list->RowIndex ?>_DaftarmID" id="o<?php echo $t_daftard_list->RowIndex ?>_DaftarmID" value="<?php echo ew_HtmlEncode($t_daftard->DaftarmID->OldValue) ?>">
-</td>
-	<?php } ?>
 	<?php if ($t_daftard->PraktikumID->Visible) { // PraktikumID ?>
 		<td data-name="PraktikumID">
 <span id="el$rowindex$_t_daftard_PraktikumID" class="form-group t_daftard_PraktikumID">
@@ -3609,6 +3422,11 @@ $t_daftard_list->ListOptions->Render("body", "left", $t_daftard_list->RowIndex);
 		<td data-name="Tgl">
 <span id="el$rowindex$_t_daftard_Tgl" class="form-group t_daftard_Tgl">
 <input type="text" data-table="t_daftard" data-field="x_Tgl" name="x<?php echo $t_daftard_list->RowIndex ?>_Tgl" id="x<?php echo $t_daftard_list->RowIndex ?>_Tgl" placeholder="<?php echo ew_HtmlEncode($t_daftard->Tgl->getPlaceHolder()) ?>" value="<?php echo $t_daftard->Tgl->EditValue ?>"<?php echo $t_daftard->Tgl->EditAttributes() ?>>
+<?php if (!$t_daftard->Tgl->ReadOnly && !$t_daftard->Tgl->Disabled && !isset($t_daftard->Tgl->EditAttrs["readonly"]) && !isset($t_daftard->Tgl->EditAttrs["disabled"])) { ?>
+<script type="text/javascript">
+ew_CreateCalendar("ft_daftardlist", "x<?php echo $t_daftard_list->RowIndex ?>_Tgl", 0);
+</script>
+<?php } ?>
 </span>
 <input type="hidden" data-table="t_daftard" data-field="x_Tgl" name="o<?php echo $t_daftard_list->RowIndex ?>_Tgl" id="o<?php echo $t_daftard_list->RowIndex ?>_Tgl" value="<?php echo ew_HtmlEncode($t_daftard->Tgl->OldValue) ?>">
 </td>

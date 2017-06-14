@@ -282,6 +282,7 @@ class ct_daftarm_delete extends ct_daftarm {
 			$Security->UserID_Loaded();
 		}
 		$this->CurrentAction = (@$_GET["a"] <> "") ? $_GET["a"] : @$_POST["a_list"]; // Set up current action
+		$this->_UserID->SetVisibility();
 		$this->TglJam->SetVisibility();
 		$this->BuktiBayar->SetVisibility();
 		$this->JumlahBayar->SetVisibility();
@@ -511,9 +512,9 @@ class ct_daftarm_delete extends ct_daftarm {
 		// UserID
 		if (strval($this->_UserID->CurrentValue) <> "") {
 			$sFilterWrk = "`UserID`" . ew_SearchString("=", $this->_UserID->CurrentValue, EW_DATATYPE_NUMBER, "");
-		$sSqlWrk = "SELECT `UserID`, `Nama` AS `DispFld`, '' AS `Disp2Fld`, '' AS `Disp3Fld`, '' AS `Disp4Fld` FROM `t_user`";
+		$sSqlWrk = "SELECT `UserID`, `Nama` AS `DispFld`, `NIM` AS `Disp2Fld`, '' AS `Disp3Fld`, '' AS `Disp4Fld` FROM `t_user`";
 		$sWhereWrk = "";
-		$this->_UserID->LookupFilters = array("dx1" => '`Nama`');
+		$this->_UserID->LookupFilters = array("dx1" => '`Nama`', "dx2" => '`NIM`');
 		ew_AddFilter($sWhereWrk, $sFilterWrk);
 		$this->Lookup_Selecting($this->_UserID, $sWhereWrk); // Call Lookup selecting
 		if ($sWhereWrk <> "") $sSqlWrk .= " WHERE " . $sWhereWrk;
@@ -521,6 +522,7 @@ class ct_daftarm_delete extends ct_daftarm {
 			if ($rswrk && !$rswrk->EOF) { // Lookup values found
 				$arwrk = array();
 				$arwrk[1] = $rswrk->fields('DispFld');
+				$arwrk[2] = $rswrk->fields('Disp2Fld');
 				$this->_UserID->ViewValue = $this->_UserID->DisplayValue($arwrk);
 				$rswrk->Close();
 			} else {
@@ -538,6 +540,9 @@ class ct_daftarm_delete extends ct_daftarm {
 
 		// BuktiBayar
 		if (!ew_Empty($this->BuktiBayar->Upload->DbValue)) {
+			$this->BuktiBayar->ImageWidth = EW_THUMBNAIL_DEFAULT_WIDTH;
+			$this->BuktiBayar->ImageHeight = EW_THUMBNAIL_DEFAULT_HEIGHT;
+			$this->BuktiBayar->ImageAlt = $this->BuktiBayar->FldAlt();
 			$this->BuktiBayar->ViewValue = $this->BuktiBayar->Upload->DbValue;
 		} else {
 			$this->BuktiBayar->ViewValue = "";
@@ -552,17 +557,16 @@ class ct_daftarm_delete extends ct_daftarm {
 
 		// Acc
 		if (strval($this->Acc->CurrentValue) <> "") {
-			$this->Acc->ViewValue = "";
-			$arwrk = explode(",", strval($this->Acc->CurrentValue));
-			$cnt = count($arwrk);
-			for ($ari = 0; $ari < $cnt; $ari++) {
-				$this->Acc->ViewValue .= $this->Acc->OptionCaption(trim($arwrk[$ari]));
-				if ($ari < $cnt-1) $this->Acc->ViewValue .= ew_ViewOptionSeparator($ari);
-			}
+			$this->Acc->ViewValue = $this->Acc->OptionCaption($this->Acc->CurrentValue);
 		} else {
 			$this->Acc->ViewValue = NULL;
 		}
 		$this->Acc->ViewCustomAttributes = "";
+
+			// UserID
+			$this->_UserID->LinkCustomAttributes = "";
+			$this->_UserID->HrefValue = "";
+			$this->_UserID->TooltipValue = "";
 
 			// TglJam
 			$this->TglJam->LinkCustomAttributes = "";
@@ -571,9 +575,21 @@ class ct_daftarm_delete extends ct_daftarm {
 
 			// BuktiBayar
 			$this->BuktiBayar->LinkCustomAttributes = "";
-			$this->BuktiBayar->HrefValue = "";
+			if (!ew_Empty($this->BuktiBayar->Upload->DbValue)) {
+				$this->BuktiBayar->HrefValue = ew_GetFileUploadUrl($this->BuktiBayar, $this->BuktiBayar->Upload->DbValue); // Add prefix/suffix
+				$this->BuktiBayar->LinkAttrs["target"] = ""; // Add target
+				if ($this->Export <> "") $this->BuktiBayar->HrefValue = ew_ConvertFullUrl($this->BuktiBayar->HrefValue);
+			} else {
+				$this->BuktiBayar->HrefValue = "";
+			}
 			$this->BuktiBayar->HrefValue2 = $this->BuktiBayar->UploadPath . $this->BuktiBayar->Upload->DbValue;
 			$this->BuktiBayar->TooltipValue = "";
+			if ($this->BuktiBayar->UseColorbox) {
+				if (ew_Empty($this->BuktiBayar->TooltipValue))
+					$this->BuktiBayar->LinkAttrs["title"] = $Language->Phrase("ViewImageGallery");
+				$this->BuktiBayar->LinkAttrs["data-rel"] = "t_daftarm_x_BuktiBayar";
+				ew_AppendClass($this->BuktiBayar->LinkAttrs["class"], "ewLightbox");
+			}
 
 			// JumlahBayar
 			$this->JumlahBayar->LinkCustomAttributes = "";
@@ -805,8 +821,9 @@ ft_daftarmdelete.ValidateRequired = false;
 <?php } ?>
 
 // Dynamic selection lists
-ft_daftarmdelete.Lists["x_Acc[]"] = {"LinkField":"","Ajax":null,"AutoFill":false,"DisplayFields":["","","",""],"ParentFields":[],"ChildFields":[],"FilterFields":[],"Options":[],"Template":""};
-ft_daftarmdelete.Lists["x_Acc[]"].Options = <?php echo json_encode($t_daftarm->Acc->Options()) ?>;
+ft_daftarmdelete.Lists["x__UserID"] = {"LinkField":"x__UserID","Ajax":true,"AutoFill":false,"DisplayFields":["x_Nama","x_NIM","",""],"ParentFields":[],"ChildFields":[],"FilterFields":[],"Options":[],"Template":"","LinkTable":"t_user"};
+ft_daftarmdelete.Lists["x_Acc"] = {"LinkField":"","Ajax":null,"AutoFill":false,"DisplayFields":["","","",""],"ParentFields":[],"ChildFields":[],"FilterFields":[],"Options":[],"Template":""};
+ft_daftarmdelete.Lists["x_Acc"].Options = <?php echo json_encode($t_daftarm->Acc->Options()) ?>;
 
 // Form object for search
 </script>
@@ -839,6 +856,9 @@ $t_daftarm_delete->ShowMessage();
 <?php echo $t_daftarm->TableCustomInnerHtml ?>
 	<thead>
 	<tr class="ewTableHeader">
+<?php if ($t_daftarm->_UserID->Visible) { // UserID ?>
+		<th><span id="elh_t_daftarm__UserID" class="t_daftarm__UserID"><?php echo $t_daftarm->_UserID->FldCaption() ?></span></th>
+<?php } ?>
 <?php if ($t_daftarm->TglJam->Visible) { // TglJam ?>
 		<th><span id="elh_t_daftarm_TglJam" class="t_daftarm_TglJam"><?php echo $t_daftarm->TglJam->FldCaption() ?></span></th>
 <?php } ?>
@@ -872,6 +892,14 @@ while (!$t_daftarm_delete->Recordset->EOF) {
 	$t_daftarm_delete->RenderRow();
 ?>
 	<tr<?php echo $t_daftarm->RowAttributes() ?>>
+<?php if ($t_daftarm->_UserID->Visible) { // UserID ?>
+		<td<?php echo $t_daftarm->_UserID->CellAttributes() ?>>
+<span id="el<?php echo $t_daftarm_delete->RowCnt ?>_t_daftarm__UserID" class="t_daftarm__UserID">
+<span<?php echo $t_daftarm->_UserID->ViewAttributes() ?>>
+<?php echo $t_daftarm->_UserID->ListViewValue() ?></span>
+</span>
+</td>
+<?php } ?>
 <?php if ($t_daftarm->TglJam->Visible) { // TglJam ?>
 		<td<?php echo $t_daftarm->TglJam->CellAttributes() ?>>
 <span id="el<?php echo $t_daftarm_delete->RowCnt ?>_t_daftarm_TglJam" class="t_daftarm_TglJam">
@@ -883,7 +911,7 @@ while (!$t_daftarm_delete->Recordset->EOF) {
 <?php if ($t_daftarm->BuktiBayar->Visible) { // BuktiBayar ?>
 		<td<?php echo $t_daftarm->BuktiBayar->CellAttributes() ?>>
 <span id="el<?php echo $t_daftarm_delete->RowCnt ?>_t_daftarm_BuktiBayar" class="t_daftarm_BuktiBayar">
-<span<?php echo $t_daftarm->BuktiBayar->ViewAttributes() ?>>
+<span>
 <?php echo ew_GetFileViewTag($t_daftarm->BuktiBayar, $t_daftarm->BuktiBayar->ListViewValue()) ?>
 </span>
 </span>

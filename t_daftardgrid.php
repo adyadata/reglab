@@ -41,12 +41,6 @@ ft_daftardgrid.Validate = function() {
 		var checkrow = (gridinsert) ? !this.EmptyRow(infix) : true;
 		if (checkrow) {
 			addcnt++;
-			elm = this.GetElements("x" + infix + "_DaftarmID");
-			if (elm && !ew_IsHidden(elm) && !ew_HasValue(elm))
-				return this.OnError(elm, "<?php echo ew_JsEncode2(str_replace("%s", $t_daftard->DaftarmID->FldCaption(), $t_daftard->DaftarmID->ReqErrMsg)) ?>");
-			elm = this.GetElements("x" + infix + "_DaftarmID");
-			if (elm && !ew_CheckInteger(elm.value))
-				return this.OnError(elm, "<?php echo ew_JsEncode2($t_daftard->DaftarmID->FldErrMsg()) ?>");
 			elm = this.GetElements("x" + infix + "_PraktikumID");
 			if (elm && !ew_IsHidden(elm) && !ew_HasValue(elm))
 				return this.OnError(elm, "<?php echo ew_JsEncode2(str_replace("%s", $t_daftard->PraktikumID->FldCaption(), $t_daftard->PraktikumID->ReqErrMsg)) ?>");
@@ -68,7 +62,6 @@ ft_daftardgrid.Validate = function() {
 // Check empty row
 ft_daftardgrid.EmptyRow = function(infix) {
 	var fobj = this.Form;
-	if (ew_ValueChanged(fobj, infix, "DaftarmID", false)) return false;
 	if (ew_ValueChanged(fobj, infix, "PraktikumID", false)) return false;
 	if (ew_ValueChanged(fobj, infix, "Tgl", false)) return false;
 	return true;
@@ -173,24 +166,6 @@ $t_daftard_grid->RenderListOptions();
 // Render list options (header, left)
 $t_daftard_grid->ListOptions->Render("header", "left");
 ?>
-<?php if ($t_daftard->DaftradID->Visible) { // DaftradID ?>
-	<?php if ($t_daftard->SortUrl($t_daftard->DaftradID) == "") { ?>
-		<th data-name="DaftradID"><div id="elh_t_daftard_DaftradID" class="t_daftard_DaftradID"><div class="ewTableHeaderCaption"><?php echo $t_daftard->DaftradID->FldCaption() ?></div></div></th>
-	<?php } else { ?>
-		<th data-name="DaftradID"><div><div id="elh_t_daftard_DaftradID" class="t_daftard_DaftradID">
-			<div class="ewTableHeaderBtn"><span class="ewTableHeaderCaption"><?php echo $t_daftard->DaftradID->FldCaption() ?></span><span class="ewTableHeaderSort"><?php if ($t_daftard->DaftradID->getSort() == "ASC") { ?><span class="caret ewSortUp"></span><?php } elseif ($t_daftard->DaftradID->getSort() == "DESC") { ?><span class="caret"></span><?php } ?></span></div>
-        </div></div></th>
-	<?php } ?>
-<?php } ?>		
-<?php if ($t_daftard->DaftarmID->Visible) { // DaftarmID ?>
-	<?php if ($t_daftard->SortUrl($t_daftard->DaftarmID) == "") { ?>
-		<th data-name="DaftarmID"><div id="elh_t_daftard_DaftarmID" class="t_daftard_DaftarmID"><div class="ewTableHeaderCaption"><?php echo $t_daftard->DaftarmID->FldCaption() ?></div></div></th>
-	<?php } else { ?>
-		<th data-name="DaftarmID"><div><div id="elh_t_daftard_DaftarmID" class="t_daftard_DaftarmID">
-			<div class="ewTableHeaderBtn"><span class="ewTableHeaderCaption"><?php echo $t_daftard->DaftarmID->FldCaption() ?></span><span class="ewTableHeaderSort"><?php if ($t_daftard->DaftarmID->getSort() == "ASC") { ?><span class="caret ewSortUp"></span><?php } elseif ($t_daftard->DaftarmID->getSort() == "DESC") { ?><span class="caret"></span><?php } ?></span></div>
-        </div></div></th>
-	<?php } ?>
-<?php } ?>		
 <?php if ($t_daftard->PraktikumID->Visible) { // PraktikumID ?>
 	<?php if ($t_daftard->SortUrl($t_daftard->PraktikumID) == "") { ?>
 		<th data-name="PraktikumID"><div id="elh_t_daftard_PraktikumID" class="t_daftard_PraktikumID"><div class="ewTableHeaderCaption"><?php echo $t_daftard->PraktikumID->FldCaption() ?></div></div></th>
@@ -318,77 +293,6 @@ while ($t_daftard_grid->RecCnt < $t_daftard_grid->StopRec) {
 // Render list options (body, left)
 $t_daftard_grid->ListOptions->Render("body", "left", $t_daftard_grid->RowCnt);
 ?>
-	<?php if ($t_daftard->DaftradID->Visible) { // DaftradID ?>
-		<td data-name="DaftradID"<?php echo $t_daftard->DaftradID->CellAttributes() ?>>
-<?php if ($t_daftard->RowType == EW_ROWTYPE_ADD) { // Add record ?>
-<input type="hidden" data-table="t_daftard" data-field="x_DaftradID" name="o<?php echo $t_daftard_grid->RowIndex ?>_DaftradID" id="o<?php echo $t_daftard_grid->RowIndex ?>_DaftradID" value="<?php echo ew_HtmlEncode($t_daftard->DaftradID->OldValue) ?>">
-<?php } ?>
-<?php if ($t_daftard->RowType == EW_ROWTYPE_EDIT) { // Edit record ?>
-<span id="el<?php echo $t_daftard_grid->RowCnt ?>_t_daftard_DaftradID" class="form-group t_daftard_DaftradID">
-<span<?php echo $t_daftard->DaftradID->ViewAttributes() ?>>
-<p class="form-control-static"><?php echo $t_daftard->DaftradID->EditValue ?></p></span>
-</span>
-<input type="hidden" data-table="t_daftard" data-field="x_DaftradID" name="x<?php echo $t_daftard_grid->RowIndex ?>_DaftradID" id="x<?php echo $t_daftard_grid->RowIndex ?>_DaftradID" value="<?php echo ew_HtmlEncode($t_daftard->DaftradID->CurrentValue) ?>">
-<?php } ?>
-<?php if ($t_daftard->RowType == EW_ROWTYPE_VIEW) { // View record ?>
-<span id="el<?php echo $t_daftard_grid->RowCnt ?>_t_daftard_DaftradID" class="t_daftard_DaftradID">
-<span<?php echo $t_daftard->DaftradID->ViewAttributes() ?>>
-<?php echo $t_daftard->DaftradID->ListViewValue() ?></span>
-</span>
-<?php if ($t_daftard->CurrentAction <> "F") { ?>
-<input type="hidden" data-table="t_daftard" data-field="x_DaftradID" name="x<?php echo $t_daftard_grid->RowIndex ?>_DaftradID" id="x<?php echo $t_daftard_grid->RowIndex ?>_DaftradID" value="<?php echo ew_HtmlEncode($t_daftard->DaftradID->FormValue) ?>">
-<input type="hidden" data-table="t_daftard" data-field="x_DaftradID" name="o<?php echo $t_daftard_grid->RowIndex ?>_DaftradID" id="o<?php echo $t_daftard_grid->RowIndex ?>_DaftradID" value="<?php echo ew_HtmlEncode($t_daftard->DaftradID->OldValue) ?>">
-<?php } else { ?>
-<input type="hidden" data-table="t_daftard" data-field="x_DaftradID" name="ft_daftardgrid$x<?php echo $t_daftard_grid->RowIndex ?>_DaftradID" id="ft_daftardgrid$x<?php echo $t_daftard_grid->RowIndex ?>_DaftradID" value="<?php echo ew_HtmlEncode($t_daftard->DaftradID->FormValue) ?>">
-<input type="hidden" data-table="t_daftard" data-field="x_DaftradID" name="ft_daftardgrid$o<?php echo $t_daftard_grid->RowIndex ?>_DaftradID" id="ft_daftardgrid$o<?php echo $t_daftard_grid->RowIndex ?>_DaftradID" value="<?php echo ew_HtmlEncode($t_daftard->DaftradID->OldValue) ?>">
-<?php } ?>
-<?php } ?>
-<a id="<?php echo $t_daftard_grid->PageObjName . "_row_" . $t_daftard_grid->RowCnt ?>"></a></td>
-	<?php } ?>
-	<?php if ($t_daftard->DaftarmID->Visible) { // DaftarmID ?>
-		<td data-name="DaftarmID"<?php echo $t_daftard->DaftarmID->CellAttributes() ?>>
-<?php if ($t_daftard->RowType == EW_ROWTYPE_ADD) { // Add record ?>
-<?php if ($t_daftard->DaftarmID->getSessionValue() <> "") { ?>
-<span id="el<?php echo $t_daftard_grid->RowCnt ?>_t_daftard_DaftarmID" class="form-group t_daftard_DaftarmID">
-<span<?php echo $t_daftard->DaftarmID->ViewAttributes() ?>>
-<p class="form-control-static"><?php echo $t_daftard->DaftarmID->ViewValue ?></p></span>
-</span>
-<input type="hidden" id="x<?php echo $t_daftard_grid->RowIndex ?>_DaftarmID" name="x<?php echo $t_daftard_grid->RowIndex ?>_DaftarmID" value="<?php echo ew_HtmlEncode($t_daftard->DaftarmID->CurrentValue) ?>">
-<?php } else { ?>
-<span id="el<?php echo $t_daftard_grid->RowCnt ?>_t_daftard_DaftarmID" class="form-group t_daftard_DaftarmID">
-<input type="text" data-table="t_daftard" data-field="x_DaftarmID" name="x<?php echo $t_daftard_grid->RowIndex ?>_DaftarmID" id="x<?php echo $t_daftard_grid->RowIndex ?>_DaftarmID" size="30" placeholder="<?php echo ew_HtmlEncode($t_daftard->DaftarmID->getPlaceHolder()) ?>" value="<?php echo $t_daftard->DaftarmID->EditValue ?>"<?php echo $t_daftard->DaftarmID->EditAttributes() ?>>
-</span>
-<?php } ?>
-<input type="hidden" data-table="t_daftard" data-field="x_DaftarmID" name="o<?php echo $t_daftard_grid->RowIndex ?>_DaftarmID" id="o<?php echo $t_daftard_grid->RowIndex ?>_DaftarmID" value="<?php echo ew_HtmlEncode($t_daftard->DaftarmID->OldValue) ?>">
-<?php } ?>
-<?php if ($t_daftard->RowType == EW_ROWTYPE_EDIT) { // Edit record ?>
-<?php if ($t_daftard->DaftarmID->getSessionValue() <> "") { ?>
-<span id="el<?php echo $t_daftard_grid->RowCnt ?>_t_daftard_DaftarmID" class="form-group t_daftard_DaftarmID">
-<span<?php echo $t_daftard->DaftarmID->ViewAttributes() ?>>
-<p class="form-control-static"><?php echo $t_daftard->DaftarmID->ViewValue ?></p></span>
-</span>
-<input type="hidden" id="x<?php echo $t_daftard_grid->RowIndex ?>_DaftarmID" name="x<?php echo $t_daftard_grid->RowIndex ?>_DaftarmID" value="<?php echo ew_HtmlEncode($t_daftard->DaftarmID->CurrentValue) ?>">
-<?php } else { ?>
-<span id="el<?php echo $t_daftard_grid->RowCnt ?>_t_daftard_DaftarmID" class="form-group t_daftard_DaftarmID">
-<input type="text" data-table="t_daftard" data-field="x_DaftarmID" name="x<?php echo $t_daftard_grid->RowIndex ?>_DaftarmID" id="x<?php echo $t_daftard_grid->RowIndex ?>_DaftarmID" size="30" placeholder="<?php echo ew_HtmlEncode($t_daftard->DaftarmID->getPlaceHolder()) ?>" value="<?php echo $t_daftard->DaftarmID->EditValue ?>"<?php echo $t_daftard->DaftarmID->EditAttributes() ?>>
-</span>
-<?php } ?>
-<?php } ?>
-<?php if ($t_daftard->RowType == EW_ROWTYPE_VIEW) { // View record ?>
-<span id="el<?php echo $t_daftard_grid->RowCnt ?>_t_daftard_DaftarmID" class="t_daftard_DaftarmID">
-<span<?php echo $t_daftard->DaftarmID->ViewAttributes() ?>>
-<?php echo $t_daftard->DaftarmID->ListViewValue() ?></span>
-</span>
-<?php if ($t_daftard->CurrentAction <> "F") { ?>
-<input type="hidden" data-table="t_daftard" data-field="x_DaftarmID" name="x<?php echo $t_daftard_grid->RowIndex ?>_DaftarmID" id="x<?php echo $t_daftard_grid->RowIndex ?>_DaftarmID" value="<?php echo ew_HtmlEncode($t_daftard->DaftarmID->FormValue) ?>">
-<input type="hidden" data-table="t_daftard" data-field="x_DaftarmID" name="o<?php echo $t_daftard_grid->RowIndex ?>_DaftarmID" id="o<?php echo $t_daftard_grid->RowIndex ?>_DaftarmID" value="<?php echo ew_HtmlEncode($t_daftard->DaftarmID->OldValue) ?>">
-<?php } else { ?>
-<input type="hidden" data-table="t_daftard" data-field="x_DaftarmID" name="ft_daftardgrid$x<?php echo $t_daftard_grid->RowIndex ?>_DaftarmID" id="ft_daftardgrid$x<?php echo $t_daftard_grid->RowIndex ?>_DaftarmID" value="<?php echo ew_HtmlEncode($t_daftard->DaftarmID->FormValue) ?>">
-<input type="hidden" data-table="t_daftard" data-field="x_DaftarmID" name="ft_daftardgrid$o<?php echo $t_daftard_grid->RowIndex ?>_DaftarmID" id="ft_daftardgrid$o<?php echo $t_daftard_grid->RowIndex ?>_DaftarmID" value="<?php echo ew_HtmlEncode($t_daftard->DaftarmID->OldValue) ?>">
-<?php } ?>
-<?php } ?>
-</td>
-	<?php } ?>
 	<?php if ($t_daftard->PraktikumID->Visible) { // PraktikumID ?>
 		<td data-name="PraktikumID"<?php echo $t_daftard->PraktikumID->CellAttributes() ?>>
 <?php if ($t_daftard->RowType == EW_ROWTYPE_ADD) { // Add record ?>
@@ -425,19 +329,36 @@ $t_daftard_grid->ListOptions->Render("body", "left", $t_daftard_grid->RowCnt);
 <input type="hidden" data-table="t_daftard" data-field="x_PraktikumID" name="ft_daftardgrid$o<?php echo $t_daftard_grid->RowIndex ?>_PraktikumID" id="ft_daftardgrid$o<?php echo $t_daftard_grid->RowIndex ?>_PraktikumID" value="<?php echo ew_HtmlEncode($t_daftard->PraktikumID->OldValue) ?>">
 <?php } ?>
 <?php } ?>
-</td>
+<a id="<?php echo $t_daftard_grid->PageObjName . "_row_" . $t_daftard_grid->RowCnt ?>"></a></td>
 	<?php } ?>
+<?php if ($t_daftard->RowType == EW_ROWTYPE_ADD) { // Add record ?>
+<input type="hidden" data-table="t_daftard" data-field="x_DaftradID" name="x<?php echo $t_daftard_grid->RowIndex ?>_DaftradID" id="x<?php echo $t_daftard_grid->RowIndex ?>_DaftradID" value="<?php echo ew_HtmlEncode($t_daftard->DaftradID->CurrentValue) ?>">
+<input type="hidden" data-table="t_daftard" data-field="x_DaftradID" name="o<?php echo $t_daftard_grid->RowIndex ?>_DaftradID" id="o<?php echo $t_daftard_grid->RowIndex ?>_DaftradID" value="<?php echo ew_HtmlEncode($t_daftard->DaftradID->OldValue) ?>">
+<?php } ?>
+<?php if ($t_daftard->RowType == EW_ROWTYPE_EDIT || $t_daftard->CurrentMode == "edit") { ?>
+<input type="hidden" data-table="t_daftard" data-field="x_DaftradID" name="x<?php echo $t_daftard_grid->RowIndex ?>_DaftradID" id="x<?php echo $t_daftard_grid->RowIndex ?>_DaftradID" value="<?php echo ew_HtmlEncode($t_daftard->DaftradID->CurrentValue) ?>">
+<?php } ?>
 	<?php if ($t_daftard->Tgl->Visible) { // Tgl ?>
 		<td data-name="Tgl"<?php echo $t_daftard->Tgl->CellAttributes() ?>>
 <?php if ($t_daftard->RowType == EW_ROWTYPE_ADD) { // Add record ?>
 <span id="el<?php echo $t_daftard_grid->RowCnt ?>_t_daftard_Tgl" class="form-group t_daftard_Tgl">
 <input type="text" data-table="t_daftard" data-field="x_Tgl" name="x<?php echo $t_daftard_grid->RowIndex ?>_Tgl" id="x<?php echo $t_daftard_grid->RowIndex ?>_Tgl" placeholder="<?php echo ew_HtmlEncode($t_daftard->Tgl->getPlaceHolder()) ?>" value="<?php echo $t_daftard->Tgl->EditValue ?>"<?php echo $t_daftard->Tgl->EditAttributes() ?>>
+<?php if (!$t_daftard->Tgl->ReadOnly && !$t_daftard->Tgl->Disabled && !isset($t_daftard->Tgl->EditAttrs["readonly"]) && !isset($t_daftard->Tgl->EditAttrs["disabled"])) { ?>
+<script type="text/javascript">
+ew_CreateCalendar("ft_daftardgrid", "x<?php echo $t_daftard_grid->RowIndex ?>_Tgl", 0);
+</script>
+<?php } ?>
 </span>
 <input type="hidden" data-table="t_daftard" data-field="x_Tgl" name="o<?php echo $t_daftard_grid->RowIndex ?>_Tgl" id="o<?php echo $t_daftard_grid->RowIndex ?>_Tgl" value="<?php echo ew_HtmlEncode($t_daftard->Tgl->OldValue) ?>">
 <?php } ?>
 <?php if ($t_daftard->RowType == EW_ROWTYPE_EDIT) { // Edit record ?>
 <span id="el<?php echo $t_daftard_grid->RowCnt ?>_t_daftard_Tgl" class="form-group t_daftard_Tgl">
 <input type="text" data-table="t_daftard" data-field="x_Tgl" name="x<?php echo $t_daftard_grid->RowIndex ?>_Tgl" id="x<?php echo $t_daftard_grid->RowIndex ?>_Tgl" placeholder="<?php echo ew_HtmlEncode($t_daftard->Tgl->getPlaceHolder()) ?>" value="<?php echo $t_daftard->Tgl->EditValue ?>"<?php echo $t_daftard->Tgl->EditAttributes() ?>>
+<?php if (!$t_daftard->Tgl->ReadOnly && !$t_daftard->Tgl->Disabled && !isset($t_daftard->Tgl->EditAttrs["readonly"]) && !isset($t_daftard->Tgl->EditAttrs["disabled"])) { ?>
+<script type="text/javascript">
+ew_CreateCalendar("ft_daftardgrid", "x<?php echo $t_daftard_grid->RowIndex ?>_Tgl", 0);
+</script>
+<?php } ?>
 </span>
 <?php } ?>
 <?php if ($t_daftard->RowType == EW_ROWTYPE_VIEW) { // View record ?>
@@ -497,43 +418,6 @@ ft_daftardgrid.UpdateOpts(<?php echo $t_daftard_grid->RowIndex ?>);
 // Render list options (body, left)
 $t_daftard_grid->ListOptions->Render("body", "left", $t_daftard_grid->RowIndex);
 ?>
-	<?php if ($t_daftard->DaftradID->Visible) { // DaftradID ?>
-		<td data-name="DaftradID">
-<?php if ($t_daftard->CurrentAction <> "F") { ?>
-<?php } else { ?>
-<span id="el$rowindex$_t_daftard_DaftradID" class="form-group t_daftard_DaftradID">
-<span<?php echo $t_daftard->DaftradID->ViewAttributes() ?>>
-<p class="form-control-static"><?php echo $t_daftard->DaftradID->ViewValue ?></p></span>
-</span>
-<input type="hidden" data-table="t_daftard" data-field="x_DaftradID" name="x<?php echo $t_daftard_grid->RowIndex ?>_DaftradID" id="x<?php echo $t_daftard_grid->RowIndex ?>_DaftradID" value="<?php echo ew_HtmlEncode($t_daftard->DaftradID->FormValue) ?>">
-<?php } ?>
-<input type="hidden" data-table="t_daftard" data-field="x_DaftradID" name="o<?php echo $t_daftard_grid->RowIndex ?>_DaftradID" id="o<?php echo $t_daftard_grid->RowIndex ?>_DaftradID" value="<?php echo ew_HtmlEncode($t_daftard->DaftradID->OldValue) ?>">
-</td>
-	<?php } ?>
-	<?php if ($t_daftard->DaftarmID->Visible) { // DaftarmID ?>
-		<td data-name="DaftarmID">
-<?php if ($t_daftard->CurrentAction <> "F") { ?>
-<?php if ($t_daftard->DaftarmID->getSessionValue() <> "") { ?>
-<span id="el$rowindex$_t_daftard_DaftarmID" class="form-group t_daftard_DaftarmID">
-<span<?php echo $t_daftard->DaftarmID->ViewAttributes() ?>>
-<p class="form-control-static"><?php echo $t_daftard->DaftarmID->ViewValue ?></p></span>
-</span>
-<input type="hidden" id="x<?php echo $t_daftard_grid->RowIndex ?>_DaftarmID" name="x<?php echo $t_daftard_grid->RowIndex ?>_DaftarmID" value="<?php echo ew_HtmlEncode($t_daftard->DaftarmID->CurrentValue) ?>">
-<?php } else { ?>
-<span id="el$rowindex$_t_daftard_DaftarmID" class="form-group t_daftard_DaftarmID">
-<input type="text" data-table="t_daftard" data-field="x_DaftarmID" name="x<?php echo $t_daftard_grid->RowIndex ?>_DaftarmID" id="x<?php echo $t_daftard_grid->RowIndex ?>_DaftarmID" size="30" placeholder="<?php echo ew_HtmlEncode($t_daftard->DaftarmID->getPlaceHolder()) ?>" value="<?php echo $t_daftard->DaftarmID->EditValue ?>"<?php echo $t_daftard->DaftarmID->EditAttributes() ?>>
-</span>
-<?php } ?>
-<?php } else { ?>
-<span id="el$rowindex$_t_daftard_DaftarmID" class="form-group t_daftard_DaftarmID">
-<span<?php echo $t_daftard->DaftarmID->ViewAttributes() ?>>
-<p class="form-control-static"><?php echo $t_daftard->DaftarmID->ViewValue ?></p></span>
-</span>
-<input type="hidden" data-table="t_daftard" data-field="x_DaftarmID" name="x<?php echo $t_daftard_grid->RowIndex ?>_DaftarmID" id="x<?php echo $t_daftard_grid->RowIndex ?>_DaftarmID" value="<?php echo ew_HtmlEncode($t_daftard->DaftarmID->FormValue) ?>">
-<?php } ?>
-<input type="hidden" data-table="t_daftard" data-field="x_DaftarmID" name="o<?php echo $t_daftard_grid->RowIndex ?>_DaftarmID" id="o<?php echo $t_daftard_grid->RowIndex ?>_DaftarmID" value="<?php echo ew_HtmlEncode($t_daftard->DaftarmID->OldValue) ?>">
-</td>
-	<?php } ?>
 	<?php if ($t_daftard->PraktikumID->Visible) { // PraktikumID ?>
 		<td data-name="PraktikumID">
 <?php if ($t_daftard->CurrentAction <> "F") { ?>
@@ -560,6 +444,11 @@ $t_daftard_grid->ListOptions->Render("body", "left", $t_daftard_grid->RowIndex);
 <?php if ($t_daftard->CurrentAction <> "F") { ?>
 <span id="el$rowindex$_t_daftard_Tgl" class="form-group t_daftard_Tgl">
 <input type="text" data-table="t_daftard" data-field="x_Tgl" name="x<?php echo $t_daftard_grid->RowIndex ?>_Tgl" id="x<?php echo $t_daftard_grid->RowIndex ?>_Tgl" placeholder="<?php echo ew_HtmlEncode($t_daftard->Tgl->getPlaceHolder()) ?>" value="<?php echo $t_daftard->Tgl->EditValue ?>"<?php echo $t_daftard->Tgl->EditAttributes() ?>>
+<?php if (!$t_daftard->Tgl->ReadOnly && !$t_daftard->Tgl->Disabled && !isset($t_daftard->Tgl->EditAttrs["readonly"]) && !isset($t_daftard->Tgl->EditAttrs["disabled"])) { ?>
+<script type="text/javascript">
+ew_CreateCalendar("ft_daftardgrid", "x<?php echo $t_daftard_grid->RowIndex ?>_Tgl", 0);
+</script>
+<?php } ?>
 </span>
 <?php } else { ?>
 <span id="el$rowindex$_t_daftard_Tgl" class="form-group t_daftard_Tgl">

@@ -644,9 +644,9 @@ class ct_daftarm_add extends ct_daftarm {
 		// UserID
 		if (strval($this->_UserID->CurrentValue) <> "") {
 			$sFilterWrk = "`UserID`" . ew_SearchString("=", $this->_UserID->CurrentValue, EW_DATATYPE_NUMBER, "");
-		$sSqlWrk = "SELECT `UserID`, `Nama` AS `DispFld`, '' AS `Disp2Fld`, '' AS `Disp3Fld`, '' AS `Disp4Fld` FROM `t_user`";
+		$sSqlWrk = "SELECT `UserID`, `Nama` AS `DispFld`, `NIM` AS `Disp2Fld`, '' AS `Disp3Fld`, '' AS `Disp4Fld` FROM `t_user`";
 		$sWhereWrk = "";
-		$this->_UserID->LookupFilters = array("dx1" => '`Nama`');
+		$this->_UserID->LookupFilters = array("dx1" => '`Nama`', "dx2" => '`NIM`');
 		ew_AddFilter($sWhereWrk, $sFilterWrk);
 		$this->Lookup_Selecting($this->_UserID, $sWhereWrk); // Call Lookup selecting
 		if ($sWhereWrk <> "") $sSqlWrk .= " WHERE " . $sWhereWrk;
@@ -654,6 +654,7 @@ class ct_daftarm_add extends ct_daftarm {
 			if ($rswrk && !$rswrk->EOF) { // Lookup values found
 				$arwrk = array();
 				$arwrk[1] = $rswrk->fields('DispFld');
+				$arwrk[2] = $rswrk->fields('Disp2Fld');
 				$this->_UserID->ViewValue = $this->_UserID->DisplayValue($arwrk);
 				$rswrk->Close();
 			} else {
@@ -671,6 +672,9 @@ class ct_daftarm_add extends ct_daftarm {
 
 		// BuktiBayar
 		if (!ew_Empty($this->BuktiBayar->Upload->DbValue)) {
+			$this->BuktiBayar->ImageWidth = EW_THUMBNAIL_DEFAULT_WIDTH;
+			$this->BuktiBayar->ImageHeight = EW_THUMBNAIL_DEFAULT_HEIGHT;
+			$this->BuktiBayar->ImageAlt = $this->BuktiBayar->FldAlt();
 			$this->BuktiBayar->ViewValue = $this->BuktiBayar->Upload->DbValue;
 		} else {
 			$this->BuktiBayar->ViewValue = "";
@@ -685,13 +689,7 @@ class ct_daftarm_add extends ct_daftarm {
 
 		// Acc
 		if (strval($this->Acc->CurrentValue) <> "") {
-			$this->Acc->ViewValue = "";
-			$arwrk = explode(",", strval($this->Acc->CurrentValue));
-			$cnt = count($arwrk);
-			for ($ari = 0; $ari < $cnt; $ari++) {
-				$this->Acc->ViewValue .= $this->Acc->OptionCaption(trim($arwrk[$ari]));
-				if ($ari < $cnt-1) $this->Acc->ViewValue .= ew_ViewOptionSeparator($ari);
-			}
+			$this->Acc->ViewValue = $this->Acc->OptionCaption($this->Acc->CurrentValue);
 		} else {
 			$this->Acc->ViewValue = NULL;
 		}
@@ -709,9 +707,21 @@ class ct_daftarm_add extends ct_daftarm {
 
 			// BuktiBayar
 			$this->BuktiBayar->LinkCustomAttributes = "";
-			$this->BuktiBayar->HrefValue = "";
+			if (!ew_Empty($this->BuktiBayar->Upload->DbValue)) {
+				$this->BuktiBayar->HrefValue = ew_GetFileUploadUrl($this->BuktiBayar, $this->BuktiBayar->Upload->DbValue); // Add prefix/suffix
+				$this->BuktiBayar->LinkAttrs["target"] = ""; // Add target
+				if ($this->Export <> "") $this->BuktiBayar->HrefValue = ew_ConvertFullUrl($this->BuktiBayar->HrefValue);
+			} else {
+				$this->BuktiBayar->HrefValue = "";
+			}
 			$this->BuktiBayar->HrefValue2 = $this->BuktiBayar->UploadPath . $this->BuktiBayar->Upload->DbValue;
 			$this->BuktiBayar->TooltipValue = "";
+			if ($this->BuktiBayar->UseColorbox) {
+				if (ew_Empty($this->BuktiBayar->TooltipValue))
+					$this->BuktiBayar->LinkAttrs["title"] = $Language->Phrase("ViewImageGallery");
+				$this->BuktiBayar->LinkAttrs["data-rel"] = "t_daftarm_x_BuktiBayar";
+				ew_AppendClass($this->BuktiBayar->LinkAttrs["class"], "ewLightbox");
+			}
 
 			// JumlahBayar
 			$this->JumlahBayar->LinkCustomAttributes = "";
@@ -731,9 +741,9 @@ class ct_daftarm_add extends ct_daftarm {
 			} else {
 				$sFilterWrk = "`UserID`" . ew_SearchString("=", $this->_UserID->CurrentValue, EW_DATATYPE_NUMBER, "");
 			}
-			$sSqlWrk = "SELECT `UserID`, `Nama` AS `DispFld`, '' AS `Disp2Fld`, '' AS `Disp3Fld`, '' AS `Disp4Fld`, '' AS `SelectFilterFld`, '' AS `SelectFilterFld2`, '' AS `SelectFilterFld3`, '' AS `SelectFilterFld4` FROM `t_user`";
+			$sSqlWrk = "SELECT `UserID`, `Nama` AS `DispFld`, `NIM` AS `Disp2Fld`, '' AS `Disp3Fld`, '' AS `Disp4Fld`, '' AS `SelectFilterFld`, '' AS `SelectFilterFld2`, '' AS `SelectFilterFld3`, '' AS `SelectFilterFld4` FROM `t_user`";
 			$sWhereWrk = "";
-			$this->_UserID->LookupFilters = array("dx1" => '`Nama`');
+			$this->_UserID->LookupFilters = array("dx1" => '`Nama`', "dx2" => '`NIM`');
 			ew_AddFilter($sWhereWrk, $sFilterWrk);
 			if (!$GLOBALS["t_daftarm"]->UserIDAllow("add")) $sWhereWrk = $GLOBALS["t_user"]->AddUserIDFilter($sWhereWrk);
 			$this->Lookup_Selecting($this->_UserID, $sWhereWrk); // Call Lookup selecting
@@ -742,6 +752,7 @@ class ct_daftarm_add extends ct_daftarm {
 			if ($rswrk && !$rswrk->EOF) { // Lookup values found
 				$arwrk = array();
 				$arwrk[1] = ew_HtmlEncode($rswrk->fields('DispFld'));
+				$arwrk[2] = ew_HtmlEncode($rswrk->fields('Disp2Fld'));
 				$this->_UserID->ViewValue = $this->_UserID->DisplayValue($arwrk);
 			} else {
 				$this->_UserID->ViewValue = $Language->Phrase("PleaseSelect");
@@ -760,6 +771,9 @@ class ct_daftarm_add extends ct_daftarm {
 			$this->BuktiBayar->EditAttrs["class"] = "form-control";
 			$this->BuktiBayar->EditCustomAttributes = "";
 			if (!ew_Empty($this->BuktiBayar->Upload->DbValue)) {
+				$this->BuktiBayar->ImageWidth = EW_THUMBNAIL_DEFAULT_WIDTH;
+				$this->BuktiBayar->ImageHeight = EW_THUMBNAIL_DEFAULT_HEIGHT;
+				$this->BuktiBayar->ImageAlt = $this->BuktiBayar->FldAlt();
 				$this->BuktiBayar->EditValue = $this->BuktiBayar->Upload->DbValue;
 			} else {
 				$this->BuktiBayar->EditValue = "";
@@ -791,7 +805,13 @@ class ct_daftarm_add extends ct_daftarm {
 
 			// BuktiBayar
 			$this->BuktiBayar->LinkCustomAttributes = "";
-			$this->BuktiBayar->HrefValue = "";
+			if (!ew_Empty($this->BuktiBayar->Upload->DbValue)) {
+				$this->BuktiBayar->HrefValue = ew_GetFileUploadUrl($this->BuktiBayar, $this->BuktiBayar->Upload->DbValue); // Add prefix/suffix
+				$this->BuktiBayar->LinkAttrs["target"] = ""; // Add target
+				if ($this->Export <> "") $this->BuktiBayar->HrefValue = ew_ConvertFullUrl($this->BuktiBayar->HrefValue);
+			} else {
+				$this->BuktiBayar->HrefValue = "";
+			}
 			$this->BuktiBayar->HrefValue2 = $this->BuktiBayar->UploadPath . $this->BuktiBayar->Upload->DbValue;
 
 			// JumlahBayar
@@ -1005,9 +1025,9 @@ class ct_daftarm_add extends ct_daftarm {
 		switch ($fld->FldVar) {
 		case "x__UserID":
 			$sSqlWrk = "";
-			$sSqlWrk = "SELECT `UserID` AS `LinkFld`, `Nama` AS `DispFld`, '' AS `Disp2Fld`, '' AS `Disp3Fld`, '' AS `Disp4Fld` FROM `t_user`";
+			$sSqlWrk = "SELECT `UserID` AS `LinkFld`, `Nama` AS `DispFld`, `NIM` AS `Disp2Fld`, '' AS `Disp3Fld`, '' AS `Disp4Fld` FROM `t_user`";
 			$sWhereWrk = "{filter}";
-			$this->_UserID->LookupFilters = array("dx1" => '`Nama`');
+			$this->_UserID->LookupFilters = array("dx1" => '`Nama`', "dx2" => '`NIM`');
 			if (!$GLOBALS["t_daftarm"]->UserIDAllow("add")) $sWhereWrk = $GLOBALS["t_user"]->AddUserIDFilter($sWhereWrk);
 			$fld->LookupFilters += array("s" => $sSqlWrk, "d" => "", "f0" => '`UserID` = {filter_value}', "t0" => "3", "fn0" => "");
 			$sSqlWrk = "";
@@ -1174,9 +1194,9 @@ ft_daftarmadd.ValidateRequired = false;
 <?php } ?>
 
 // Dynamic selection lists
-ft_daftarmadd.Lists["x__UserID"] = {"LinkField":"x__UserID","Ajax":true,"AutoFill":false,"DisplayFields":["x_Nama","","",""],"ParentFields":[],"ChildFields":[],"FilterFields":[],"Options":[],"Template":"","LinkTable":"t_user"};
-ft_daftarmadd.Lists["x_Acc[]"] = {"LinkField":"","Ajax":null,"AutoFill":false,"DisplayFields":["","","",""],"ParentFields":[],"ChildFields":[],"FilterFields":[],"Options":[],"Template":""};
-ft_daftarmadd.Lists["x_Acc[]"].Options = <?php echo json_encode($t_daftarm->Acc->Options()) ?>;
+ft_daftarmadd.Lists["x__UserID"] = {"LinkField":"x__UserID","Ajax":true,"AutoFill":false,"DisplayFields":["x_Nama","x_NIM","",""],"ParentFields":[],"ChildFields":[],"FilterFields":[],"Options":[],"Template":"","LinkTable":"t_user"};
+ft_daftarmadd.Lists["x_Acc"] = {"LinkField":"","Ajax":null,"AutoFill":false,"DisplayFields":["","","",""],"ParentFields":[],"ChildFields":[],"FilterFields":[],"Options":[],"Template":""};
+ft_daftarmadd.Lists["x_Acc"].Options = <?php echo json_encode($t_daftarm->Acc->Options()) ?>;
 
 // Form object for search
 </script>
@@ -1271,9 +1291,9 @@ ew_CreateCalendar("ft_daftarmadd", "x_TglJam", 0);
 		<label id="elh_t_daftarm_Acc" class="col-sm-2 control-label ewLabel"><?php echo $t_daftarm->Acc->FldCaption() ?></label>
 		<div class="col-sm-10"><div<?php echo $t_daftarm->Acc->CellAttributes() ?>>
 <span id="el_t_daftarm_Acc">
-<div id="tp_x_Acc" class="ewTemplate"><input type="checkbox" data-table="t_daftarm" data-field="x_Acc" data-value-separator="<?php echo $t_daftarm->Acc->DisplayValueSeparatorAttribute() ?>" name="x_Acc[]" id="x_Acc[]" value="{value}"<?php echo $t_daftarm->Acc->EditAttributes() ?>></div>
+<div id="tp_x_Acc" class="ewTemplate"><input type="radio" data-table="t_daftarm" data-field="x_Acc" data-value-separator="<?php echo $t_daftarm->Acc->DisplayValueSeparatorAttribute() ?>" name="x_Acc" id="x_Acc" value="{value}"<?php echo $t_daftarm->Acc->EditAttributes() ?>></div>
 <div id="dsl_x_Acc" data-repeatcolumn="5" class="ewItemList" style="display: none;"><div>
-<?php echo $t_daftarm->Acc->CheckBoxListHtml(FALSE, "x_Acc[]") ?>
+<?php echo $t_daftarm->Acc->RadioButtonListHtml(FALSE, "x_Acc") ?>
 </div></div>
 </span>
 <?php echo $t_daftarm->Acc->CustomMsg ?></div></div>

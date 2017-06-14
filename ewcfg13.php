@@ -25,7 +25,7 @@ define("EW_CONFIG_FILE_FOLDER", EW_PROJECT_NAME, TRUE); // Config file name
 define("EW_PROJECT_ID", "{BDF410E2-F8A1-44BF-83FA-BA321C2274F7}", TRUE); // Project ID (GUID)
 $EW_RELATED_PROJECT_ID = "";
 $EW_RELATED_LANGUAGE_FOLDER = "";
-define("EW_RANDOM_KEY", 'S02zaoJbr9EdDjN7', TRUE); // Random key for encryption
+define("EW_RANDOM_KEY", '794zXEp8zEirvymb', TRUE); // Random key for encryption
 define("EW_PROJECT_STYLESHEET_FILENAME", "phpcss/reglab.css", TRUE); // Project stylesheet file name
 define("EW_CHARSET", "", TRUE); // Project charset
 define("EW_EMAIL_CHARSET", EW_CHARSET, TRUE); // Email charset
@@ -92,7 +92,7 @@ define("EW_MYSQL_CHARSET", "", TRUE);
  * Otherwise, existing users will not be able to login. MD5 hash is
  * irreversible, password will be reset during password recovery.
  */
-define("EW_ENCRYPTED_PASSWORD", TRUE, TRUE); // Use encrypted password
+define("EW_ENCRYPTED_PASSWORD", FALSE, TRUE); // Use encrypted password
 define("EW_CASE_SENSITIVE_PASSWORD", FALSE, TRUE); // Case-sensitive password
 /**
  * Remove XSS

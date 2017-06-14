@@ -289,7 +289,6 @@ class ct_daftard_add extends ct_daftard {
 		// Create form object
 		$objForm = new cFormObj();
 		$this->CurrentAction = (@$_GET["a"] <> "") ? $_GET["a"] : @$_POST["a_list"]; // Set up current action
-		$this->DaftarmID->SetVisibility();
 		$this->PraktikumID->SetVisibility();
 		$this->Tgl->SetVisibility();
 
@@ -481,8 +480,6 @@ class ct_daftard_add extends ct_daftard {
 
 	// Load default values
 	function LoadDefaultValues() {
-		$this->DaftarmID->CurrentValue = NULL;
-		$this->DaftarmID->OldValue = $this->DaftarmID->CurrentValue;
 		$this->PraktikumID->CurrentValue = NULL;
 		$this->PraktikumID->OldValue = $this->PraktikumID->CurrentValue;
 		$this->Tgl->CurrentValue = NULL;
@@ -494,9 +491,6 @@ class ct_daftard_add extends ct_daftard {
 
 		// Load from form
 		global $objForm;
-		if (!$this->DaftarmID->FldIsDetailKey) {
-			$this->DaftarmID->setFormValue($objForm->GetValue("x_DaftarmID"));
-		}
 		if (!$this->PraktikumID->FldIsDetailKey) {
 			$this->PraktikumID->setFormValue($objForm->GetValue("x_PraktikumID"));
 		}
@@ -510,7 +504,6 @@ class ct_daftard_add extends ct_daftard {
 	function RestoreFormValues() {
 		global $objForm;
 		$this->LoadOldRecord();
-		$this->DaftarmID->CurrentValue = $this->DaftarmID->FormValue;
 		$this->PraktikumID->CurrentValue = $this->PraktikumID->FormValue;
 		$this->Tgl->CurrentValue = $this->Tgl->FormValue;
 		$this->Tgl->CurrentValue = ew_UnFormatDateTime($this->Tgl->CurrentValue, 0);
@@ -647,11 +640,6 @@ class ct_daftard_add extends ct_daftard {
 		$this->Tgl->ViewValue = ew_FormatDateTime($this->Tgl->ViewValue, 0);
 		$this->Tgl->ViewCustomAttributes = "";
 
-			// DaftarmID
-			$this->DaftarmID->LinkCustomAttributes = "";
-			$this->DaftarmID->HrefValue = "";
-			$this->DaftarmID->TooltipValue = "";
-
 			// PraktikumID
 			$this->PraktikumID->LinkCustomAttributes = "";
 			$this->PraktikumID->HrefValue = "";
@@ -662,18 +650,6 @@ class ct_daftard_add extends ct_daftard {
 			$this->Tgl->HrefValue = "";
 			$this->Tgl->TooltipValue = "";
 		} elseif ($this->RowType == EW_ROWTYPE_ADD) { // Add row
-
-			// DaftarmID
-			$this->DaftarmID->EditAttrs["class"] = "form-control";
-			$this->DaftarmID->EditCustomAttributes = "";
-			if ($this->DaftarmID->getSessionValue() <> "") {
-				$this->DaftarmID->CurrentValue = $this->DaftarmID->getSessionValue();
-			$this->DaftarmID->ViewValue = $this->DaftarmID->CurrentValue;
-			$this->DaftarmID->ViewCustomAttributes = "";
-			} else {
-			$this->DaftarmID->EditValue = ew_HtmlEncode($this->DaftarmID->CurrentValue);
-			$this->DaftarmID->PlaceHolder = ew_RemoveHtml($this->DaftarmID->FldCaption());
-			}
 
 			// PraktikumID
 			$this->PraktikumID->EditCustomAttributes = "";
@@ -712,12 +688,8 @@ class ct_daftard_add extends ct_daftard {
 			$this->Tgl->PlaceHolder = ew_RemoveHtml($this->Tgl->FldCaption());
 
 			// Add refer script
-			// DaftarmID
-
-			$this->DaftarmID->LinkCustomAttributes = "";
-			$this->DaftarmID->HrefValue = "";
-
 			// PraktikumID
+
 			$this->PraktikumID->LinkCustomAttributes = "";
 			$this->PraktikumID->HrefValue = "";
 
@@ -746,12 +718,6 @@ class ct_daftard_add extends ct_daftard {
 		// Check if validation required
 		if (!EW_SERVER_VALIDATE)
 			return ($gsFormError == "");
-		if (!$this->DaftarmID->FldIsDetailKey && !is_null($this->DaftarmID->FormValue) && $this->DaftarmID->FormValue == "") {
-			ew_AddMessage($gsFormError, str_replace("%s", $this->DaftarmID->FldCaption(), $this->DaftarmID->ReqErrMsg));
-		}
-		if (!ew_CheckInteger($this->DaftarmID->FormValue)) {
-			ew_AddMessage($gsFormError, $this->DaftarmID->FldErrMsg());
-		}
 		if (!$this->PraktikumID->FldIsDetailKey && !is_null($this->PraktikumID->FormValue) && $this->PraktikumID->FormValue == "") {
 			ew_AddMessage($gsFormError, str_replace("%s", $this->PraktikumID->FldCaption(), $this->PraktikumID->ReqErrMsg));
 		}
@@ -785,14 +751,16 @@ class ct_daftard_add extends ct_daftard {
 		}
 		$rsnew = array();
 
-		// DaftarmID
-		$this->DaftarmID->SetDbValueDef($rsnew, $this->DaftarmID->CurrentValue, 0, FALSE);
-
 		// PraktikumID
 		$this->PraktikumID->SetDbValueDef($rsnew, $this->PraktikumID->CurrentValue, 0, FALSE);
 
 		// Tgl
 		$this->Tgl->SetDbValueDef($rsnew, ew_UnFormatDateTime($this->Tgl->CurrentValue, 0), ew_CurrentDate(), FALSE);
+
+		// DaftarmID
+		if ($this->DaftarmID->getSessionValue() <> "") {
+			$rsnew['DaftarmID'] = $this->DaftarmID->getSessionValue();
+		}
 
 		// Call Row Inserting event
 		$rs = ($rsold == NULL) ? NULL : $rsold->fields;
@@ -1030,12 +998,6 @@ ft_daftardadd.Validate = function() {
 	for (var i = startcnt; i <= rowcnt; i++) {
 		var infix = ($k[0]) ? String(i) : "";
 		$fobj.data("rowindex", infix);
-			elm = this.GetElements("x" + infix + "_DaftarmID");
-			if (elm && !ew_IsHidden(elm) && !ew_HasValue(elm))
-				return this.OnError(elm, "<?php echo ew_JsEncode2(str_replace("%s", $t_daftard->DaftarmID->FldCaption(), $t_daftard->DaftarmID->ReqErrMsg)) ?>");
-			elm = this.GetElements("x" + infix + "_DaftarmID");
-			if (elm && !ew_CheckInteger(elm.value))
-				return this.OnError(elm, "<?php echo ew_JsEncode2($t_daftard->DaftarmID->FldErrMsg()) ?>");
 			elm = this.GetElements("x" + infix + "_PraktikumID");
 			if (elm && !ew_IsHidden(elm) && !ew_HasValue(elm))
 				return this.OnError(elm, "<?php echo ew_JsEncode2(str_replace("%s", $t_daftard->PraktikumID->FldCaption(), $t_daftard->PraktikumID->ReqErrMsg)) ?>");
@@ -1111,24 +1073,6 @@ $t_daftard_add->ShowMessage();
 <input type="hidden" name="fk_DaftarmID" value="<?php echo $t_daftard->DaftarmID->getSessionValue() ?>">
 <?php } ?>
 <div>
-<?php if ($t_daftard->DaftarmID->Visible) { // DaftarmID ?>
-	<div id="r_DaftarmID" class="form-group">
-		<label id="elh_t_daftard_DaftarmID" for="x_DaftarmID" class="col-sm-2 control-label ewLabel"><?php echo $t_daftard->DaftarmID->FldCaption() ?><?php echo $Language->Phrase("FieldRequiredIndicator") ?></label>
-		<div class="col-sm-10"><div<?php echo $t_daftard->DaftarmID->CellAttributes() ?>>
-<?php if ($t_daftard->DaftarmID->getSessionValue() <> "") { ?>
-<span id="el_t_daftard_DaftarmID">
-<span<?php echo $t_daftard->DaftarmID->ViewAttributes() ?>>
-<p class="form-control-static"><?php echo $t_daftard->DaftarmID->ViewValue ?></p></span>
-</span>
-<input type="hidden" id="x_DaftarmID" name="x_DaftarmID" value="<?php echo ew_HtmlEncode($t_daftard->DaftarmID->CurrentValue) ?>">
-<?php } else { ?>
-<span id="el_t_daftard_DaftarmID">
-<input type="text" data-table="t_daftard" data-field="x_DaftarmID" name="x_DaftarmID" id="x_DaftarmID" size="30" placeholder="<?php echo ew_HtmlEncode($t_daftard->DaftarmID->getPlaceHolder()) ?>" value="<?php echo $t_daftard->DaftarmID->EditValue ?>"<?php echo $t_daftard->DaftarmID->EditAttributes() ?>>
-</span>
-<?php } ?>
-<?php echo $t_daftard->DaftarmID->CustomMsg ?></div></div>
-	</div>
-<?php } ?>
 <?php if ($t_daftard->PraktikumID->Visible) { // PraktikumID ?>
 	<div id="r_PraktikumID" class="form-group">
 		<label id="elh_t_daftard_PraktikumID" for="x_PraktikumID" class="col-sm-2 control-label ewLabel"><?php echo $t_daftard->PraktikumID->FldCaption() ?><?php echo $Language->Phrase("FieldRequiredIndicator") ?></label>
@@ -1150,11 +1094,19 @@ $t_daftard_add->ShowMessage();
 		<div class="col-sm-10"><div<?php echo $t_daftard->Tgl->CellAttributes() ?>>
 <span id="el_t_daftard_Tgl">
 <input type="text" data-table="t_daftard" data-field="x_Tgl" name="x_Tgl" id="x_Tgl" placeholder="<?php echo ew_HtmlEncode($t_daftard->Tgl->getPlaceHolder()) ?>" value="<?php echo $t_daftard->Tgl->EditValue ?>"<?php echo $t_daftard->Tgl->EditAttributes() ?>>
+<?php if (!$t_daftard->Tgl->ReadOnly && !$t_daftard->Tgl->Disabled && !isset($t_daftard->Tgl->EditAttrs["readonly"]) && !isset($t_daftard->Tgl->EditAttrs["disabled"])) { ?>
+<script type="text/javascript">
+ew_CreateCalendar("ft_daftardadd", "x_Tgl", 0);
+</script>
+<?php } ?>
 </span>
 <?php echo $t_daftard->Tgl->CustomMsg ?></div></div>
 	</div>
 <?php } ?>
 </div>
+<?php if (strval($t_daftard->DaftarmID->getSessionValue()) <> "") { ?>
+<input type="hidden" name="x_DaftarmID" id="x_DaftarmID" value="<?php echo ew_HtmlEncode(strval($t_daftard->DaftarmID->getSessionValue())) ?>">
+<?php } ?>
 <?php if (!$t_daftard_add->IsModal) { ?>
 <div class="form-group">
 	<div class="col-sm-offset-2 col-sm-10">

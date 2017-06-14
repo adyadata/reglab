@@ -387,9 +387,6 @@ class ct_daftard_view extends ct_daftard {
 
 		// Setup export options
 		$this->SetupExportOptions();
-		$this->DaftradID->SetVisibility();
-		$this->DaftradID->Visible = !$this->IsAdd() && !$this->IsCopy() && !$this->IsGridAdd();
-		$this->DaftarmID->SetVisibility();
 		$this->PraktikumID->SetVisibility();
 		$this->Tgl->SetVisibility();
 
@@ -795,16 +792,6 @@ class ct_daftard_view extends ct_daftard {
 		$this->Tgl->ViewValue = $this->Tgl->CurrentValue;
 		$this->Tgl->ViewValue = ew_FormatDateTime($this->Tgl->ViewValue, 0);
 		$this->Tgl->ViewCustomAttributes = "";
-
-			// DaftradID
-			$this->DaftradID->LinkCustomAttributes = "";
-			$this->DaftradID->HrefValue = "";
-			$this->DaftradID->TooltipValue = "";
-
-			// DaftarmID
-			$this->DaftarmID->LinkCustomAttributes = "";
-			$this->DaftarmID->HrefValue = "";
-			$this->DaftarmID->TooltipValue = "";
 
 			// PraktikumID
 			$this->PraktikumID->LinkCustomAttributes = "";
@@ -1374,28 +1361,6 @@ $t_daftard_view->ShowMessage();
 <input type="hidden" name="modal" value="1">
 <?php } ?>
 <table class="table table-bordered table-striped ewViewTable">
-<?php if ($t_daftard->DaftradID->Visible) { // DaftradID ?>
-	<tr id="r_DaftradID">
-		<td><span id="elh_t_daftard_DaftradID"><?php echo $t_daftard->DaftradID->FldCaption() ?></span></td>
-		<td data-name="DaftradID"<?php echo $t_daftard->DaftradID->CellAttributes() ?>>
-<span id="el_t_daftard_DaftradID">
-<span<?php echo $t_daftard->DaftradID->ViewAttributes() ?>>
-<?php echo $t_daftard->DaftradID->ViewValue ?></span>
-</span>
-</td>
-	</tr>
-<?php } ?>
-<?php if ($t_daftard->DaftarmID->Visible) { // DaftarmID ?>
-	<tr id="r_DaftarmID">
-		<td><span id="elh_t_daftard_DaftarmID"><?php echo $t_daftard->DaftarmID->FldCaption() ?></span></td>
-		<td data-name="DaftarmID"<?php echo $t_daftard->DaftarmID->CellAttributes() ?>>
-<span id="el_t_daftard_DaftarmID">
-<span<?php echo $t_daftard->DaftarmID->ViewAttributes() ?>>
-<?php echo $t_daftard->DaftarmID->ViewValue ?></span>
-</span>
-</td>
-	</tr>
-<?php } ?>
 <?php if ($t_daftard->PraktikumID->Visible) { // PraktikumID ?>
 	<tr id="r_PraktikumID">
 		<td><span id="elh_t_daftard_PraktikumID"><?php echo $t_daftard->PraktikumID->FldCaption() ?></span></td>

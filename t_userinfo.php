@@ -782,7 +782,7 @@ class ct_user extends cTable {
 		$this->UserName->PlaceHolder = ew_RemoveHtml($this->UserName->FldCaption());
 
 		// Password
-		$this->Password->EditAttrs["class"] = "form-control ewPasswordStrength";
+		$this->Password->EditAttrs["class"] = "form-control";
 		$this->Password->EditCustomAttributes = "";
 		$this->Password->EditValue = $this->Password->CurrentValue;
 		$this->Password->PlaceHolder = ew_RemoveHtml($this->Password->FldCaption());

@@ -312,9 +312,6 @@ class ct_daftard_grid extends ct_daftard {
 
 		// Set up list options
 		$this->SetupListOptions();
-		$this->DaftradID->SetVisibility();
-		$this->DaftradID->Visible = !$this->IsAdd() && !$this->IsCopy() && !$this->IsGridAdd();
-		$this->DaftarmID->SetVisibility();
 		$this->PraktikumID->SetVisibility();
 		$this->Tgl->SetVisibility();
 
@@ -803,8 +800,6 @@ class ct_daftard_grid extends ct_daftard {
 	// Check if empty row
 	function EmptyRow() {
 		global $objForm;
-		if ($objForm->HasValue("x_DaftarmID") && $objForm->HasValue("o_DaftarmID") && $this->DaftarmID->CurrentValue <> $this->DaftarmID->OldValue)
-			return FALSE;
 		if ($objForm->HasValue("x_PraktikumID") && $objForm->HasValue("o_PraktikumID") && $this->PraktikumID->CurrentValue <> $this->PraktikumID->OldValue)
 			return FALSE;
 		if ($objForm->HasValue("x_Tgl") && $objForm->HasValue("o_Tgl") && $this->Tgl->CurrentValue <> $this->Tgl->OldValue)
@@ -1166,10 +1161,6 @@ class ct_daftard_grid extends ct_daftard {
 
 	// Load default values
 	function LoadDefaultValues() {
-		$this->DaftradID->CurrentValue = NULL;
-		$this->DaftradID->OldValue = $this->DaftradID->CurrentValue;
-		$this->DaftarmID->CurrentValue = NULL;
-		$this->DaftarmID->OldValue = $this->DaftarmID->CurrentValue;
 		$this->PraktikumID->CurrentValue = NULL;
 		$this->PraktikumID->OldValue = $this->PraktikumID->CurrentValue;
 		$this->Tgl->CurrentValue = NULL;
@@ -1182,12 +1173,6 @@ class ct_daftard_grid extends ct_daftard {
 		// Load from form
 		global $objForm;
 		$objForm->FormName = $this->FormName;
-		if (!$this->DaftradID->FldIsDetailKey && $this->CurrentAction <> "gridadd" && $this->CurrentAction <> "add")
-			$this->DaftradID->setFormValue($objForm->GetValue("x_DaftradID"));
-		if (!$this->DaftarmID->FldIsDetailKey) {
-			$this->DaftarmID->setFormValue($objForm->GetValue("x_DaftarmID"));
-		}
-		$this->DaftarmID->setOldValue($objForm->GetValue("o_DaftarmID"));
 		if (!$this->PraktikumID->FldIsDetailKey) {
 			$this->PraktikumID->setFormValue($objForm->GetValue("x_PraktikumID"));
 		}
@@ -1197,6 +1182,8 @@ class ct_daftard_grid extends ct_daftard {
 			$this->Tgl->CurrentValue = ew_UnFormatDateTime($this->Tgl->CurrentValue, 0);
 		}
 		$this->Tgl->setOldValue($objForm->GetValue("o_Tgl"));
+		if (!$this->DaftradID->FldIsDetailKey && $this->CurrentAction <> "gridadd" && $this->CurrentAction <> "add")
+			$this->DaftradID->setFormValue($objForm->GetValue("x_DaftradID"));
 	}
 
 	// Restore form values
@@ -1204,7 +1191,6 @@ class ct_daftard_grid extends ct_daftard {
 		global $objForm;
 		if ($this->CurrentAction <> "gridadd" && $this->CurrentAction <> "add")
 			$this->DaftradID->CurrentValue = $this->DaftradID->FormValue;
-		$this->DaftarmID->CurrentValue = $this->DaftarmID->FormValue;
 		$this->PraktikumID->CurrentValue = $this->PraktikumID->FormValue;
 		$this->Tgl->CurrentValue = $this->Tgl->FormValue;
 		$this->Tgl->CurrentValue = ew_UnFormatDateTime($this->Tgl->CurrentValue, 0);
@@ -1377,16 +1363,6 @@ class ct_daftard_grid extends ct_daftard {
 		$this->Tgl->ViewValue = ew_FormatDateTime($this->Tgl->ViewValue, 0);
 		$this->Tgl->ViewCustomAttributes = "";
 
-			// DaftradID
-			$this->DaftradID->LinkCustomAttributes = "";
-			$this->DaftradID->HrefValue = "";
-			$this->DaftradID->TooltipValue = "";
-
-			// DaftarmID
-			$this->DaftarmID->LinkCustomAttributes = "";
-			$this->DaftarmID->HrefValue = "";
-			$this->DaftarmID->TooltipValue = "";
-
 			// PraktikumID
 			$this->PraktikumID->LinkCustomAttributes = "";
 			$this->PraktikumID->HrefValue = "";
@@ -1397,21 +1373,6 @@ class ct_daftard_grid extends ct_daftard {
 			$this->Tgl->HrefValue = "";
 			$this->Tgl->TooltipValue = "";
 		} elseif ($this->RowType == EW_ROWTYPE_ADD) { // Add row
-
-			// DaftradID
-			// DaftarmID
-
-			$this->DaftarmID->EditAttrs["class"] = "form-control";
-			$this->DaftarmID->EditCustomAttributes = "";
-			if ($this->DaftarmID->getSessionValue() <> "") {
-				$this->DaftarmID->CurrentValue = $this->DaftarmID->getSessionValue();
-				$this->DaftarmID->OldValue = $this->DaftarmID->CurrentValue;
-			$this->DaftarmID->ViewValue = $this->DaftarmID->CurrentValue;
-			$this->DaftarmID->ViewCustomAttributes = "";
-			} else {
-			$this->DaftarmID->EditValue = ew_HtmlEncode($this->DaftarmID->CurrentValue);
-			$this->DaftarmID->PlaceHolder = ew_RemoveHtml($this->DaftarmID->FldCaption());
-			}
 
 			// PraktikumID
 			$this->PraktikumID->EditCustomAttributes = "";
@@ -1450,16 +1411,8 @@ class ct_daftard_grid extends ct_daftard {
 			$this->Tgl->PlaceHolder = ew_RemoveHtml($this->Tgl->FldCaption());
 
 			// Add refer script
-			// DaftradID
-
-			$this->DaftradID->LinkCustomAttributes = "";
-			$this->DaftradID->HrefValue = "";
-
-			// DaftarmID
-			$this->DaftarmID->LinkCustomAttributes = "";
-			$this->DaftarmID->HrefValue = "";
-
 			// PraktikumID
+
 			$this->PraktikumID->LinkCustomAttributes = "";
 			$this->PraktikumID->HrefValue = "";
 
@@ -1467,25 +1420,6 @@ class ct_daftard_grid extends ct_daftard {
 			$this->Tgl->LinkCustomAttributes = "";
 			$this->Tgl->HrefValue = "";
 		} elseif ($this->RowType == EW_ROWTYPE_EDIT) { // Edit row
-
-			// DaftradID
-			$this->DaftradID->EditAttrs["class"] = "form-control";
-			$this->DaftradID->EditCustomAttributes = "";
-			$this->DaftradID->EditValue = $this->DaftradID->CurrentValue;
-			$this->DaftradID->ViewCustomAttributes = "";
-
-			// DaftarmID
-			$this->DaftarmID->EditAttrs["class"] = "form-control";
-			$this->DaftarmID->EditCustomAttributes = "";
-			if ($this->DaftarmID->getSessionValue() <> "") {
-				$this->DaftarmID->CurrentValue = $this->DaftarmID->getSessionValue();
-				$this->DaftarmID->OldValue = $this->DaftarmID->CurrentValue;
-			$this->DaftarmID->ViewValue = $this->DaftarmID->CurrentValue;
-			$this->DaftarmID->ViewCustomAttributes = "";
-			} else {
-			$this->DaftarmID->EditValue = ew_HtmlEncode($this->DaftarmID->CurrentValue);
-			$this->DaftarmID->PlaceHolder = ew_RemoveHtml($this->DaftarmID->FldCaption());
-			}
 
 			// PraktikumID
 			$this->PraktikumID->EditCustomAttributes = "";
@@ -1524,16 +1458,8 @@ class ct_daftard_grid extends ct_daftard {
 			$this->Tgl->PlaceHolder = ew_RemoveHtml($this->Tgl->FldCaption());
 
 			// Edit refer script
-			// DaftradID
-
-			$this->DaftradID->LinkCustomAttributes = "";
-			$this->DaftradID->HrefValue = "";
-
-			// DaftarmID
-			$this->DaftarmID->LinkCustomAttributes = "";
-			$this->DaftarmID->HrefValue = "";
-
 			// PraktikumID
+
 			$this->PraktikumID->LinkCustomAttributes = "";
 			$this->PraktikumID->HrefValue = "";
 
@@ -1559,12 +1485,6 @@ class ct_daftard_grid extends ct_daftard {
 		// Check if validation required
 		if (!EW_SERVER_VALIDATE)
 			return ($gsFormError == "");
-		if (!$this->DaftarmID->FldIsDetailKey && !is_null($this->DaftarmID->FormValue) && $this->DaftarmID->FormValue == "") {
-			ew_AddMessage($gsFormError, str_replace("%s", $this->DaftarmID->FldCaption(), $this->DaftarmID->ReqErrMsg));
-		}
-		if (!ew_CheckInteger($this->DaftarmID->FormValue)) {
-			ew_AddMessage($gsFormError, $this->DaftarmID->FldErrMsg());
-		}
 		if (!$this->PraktikumID->FldIsDetailKey && !is_null($this->PraktikumID->FormValue) && $this->PraktikumID->FormValue == "") {
 			ew_AddMessage($gsFormError, str_replace("%s", $this->PraktikumID->FldCaption(), $this->PraktikumID->ReqErrMsg));
 		}
@@ -1692,9 +1612,6 @@ class ct_daftard_grid extends ct_daftard {
 			$this->LoadDbValues($rsold);
 			$rsnew = array();
 
-			// DaftarmID
-			$this->DaftarmID->SetDbValueDef($rsnew, $this->DaftarmID->CurrentValue, 0, $this->DaftarmID->ReadOnly);
-
 			// PraktikumID
 			$this->PraktikumID->SetDbValueDef($rsnew, $this->PraktikumID->CurrentValue, 0, $this->PraktikumID->ReadOnly);
 
@@ -1749,14 +1666,16 @@ class ct_daftard_grid extends ct_daftard {
 		}
 		$rsnew = array();
 
-		// DaftarmID
-		$this->DaftarmID->SetDbValueDef($rsnew, $this->DaftarmID->CurrentValue, 0, FALSE);
-
 		// PraktikumID
 		$this->PraktikumID->SetDbValueDef($rsnew, $this->PraktikumID->CurrentValue, 0, FALSE);
 
 		// Tgl
 		$this->Tgl->SetDbValueDef($rsnew, ew_UnFormatDateTime($this->Tgl->CurrentValue, 0), ew_CurrentDate(), FALSE);
+
+		// DaftarmID
+		if ($this->DaftarmID->getSessionValue() <> "") {
+			$rsnew['DaftarmID'] = $this->DaftarmID->getSessionValue();
+		}
 
 		// Call Row Inserting event
 		$rs = ($rsold == NULL) ? NULL : $rsold->fields;

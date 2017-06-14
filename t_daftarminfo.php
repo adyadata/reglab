@@ -71,8 +71,9 @@ class ct_daftarm extends cTable {
 		$this->fields['TglJam'] = &$this->TglJam;
 
 		// BuktiBayar
-		$this->BuktiBayar = new cField('t_daftarm', 't_daftarm', 'x_BuktiBayar', 'BuktiBayar', '`BuktiBayar`', '`BuktiBayar`', 200, -1, TRUE, '`BuktiBayar`', FALSE, FALSE, FALSE, 'FORMATTED TEXT', 'FILE');
+		$this->BuktiBayar = new cField('t_daftarm', 't_daftarm', 'x_BuktiBayar', 'BuktiBayar', '`BuktiBayar`', '`BuktiBayar`', 200, -1, TRUE, '`BuktiBayar`', FALSE, FALSE, FALSE, 'IMAGE', 'FILE');
 		$this->BuktiBayar->Sortable = TRUE; // Allow sort
+		$this->BuktiBayar->ImageResize = TRUE;
 		$this->fields['BuktiBayar'] = &$this->BuktiBayar;
 
 		// JumlahBayar
@@ -82,7 +83,7 @@ class ct_daftarm extends cTable {
 		$this->fields['JumlahBayar'] = &$this->JumlahBayar;
 
 		// Acc
-		$this->Acc = new cField('t_daftarm', 't_daftarm', 'x_Acc', 'Acc', '`Acc`', '`Acc`', 16, -1, FALSE, '`Acc`', FALSE, FALSE, FALSE, 'FORMATTED TEXT', 'CHECKBOX');
+		$this->Acc = new cField('t_daftarm', 't_daftarm', 'x_Acc', 'Acc', '`Acc`', '`Acc`', 16, -1, FALSE, '`Acc`', FALSE, FALSE, FALSE, 'FORMATTED TEXT', 'RADIO');
 		$this->Acc->Sortable = TRUE; // Allow sort
 		$this->Acc->OptionCount = 2;
 		$this->Acc->FldDefaultErrMsg = $Language->Phrase("IncorrectInteger");
@@ -178,7 +179,7 @@ class ct_daftarm extends cTable {
 
 	function getSqlWhere() { // Where
 		$sWhere = ($this->_SqlWhere <> "") ? $this->_SqlWhere : "";
-		$this->TableFilter = "";
+		$this->TableFilter = (CurrentUserLevel() >= 0 ? "`acc` = '0' and userid = ".CurrentUserID() : "");
 		ew_AddFilter($sWhere, $this->TableFilter);
 		return $sWhere;
 	}
@@ -659,9 +660,9 @@ class ct_daftarm extends cTable {
 		// UserID
 		if (strval($this->_UserID->CurrentValue) <> "") {
 			$sFilterWrk = "`UserID`" . ew_SearchString("=", $this->_UserID->CurrentValue, EW_DATATYPE_NUMBER, "");
-		$sSqlWrk = "SELECT `UserID`, `Nama` AS `DispFld`, '' AS `Disp2Fld`, '' AS `Disp3Fld`, '' AS `Disp4Fld` FROM `t_user`";
+		$sSqlWrk = "SELECT `UserID`, `Nama` AS `DispFld`, `NIM` AS `Disp2Fld`, '' AS `Disp3Fld`, '' AS `Disp4Fld` FROM `t_user`";
 		$sWhereWrk = "";
-		$this->_UserID->LookupFilters = array("dx1" => '`Nama`');
+		$this->_UserID->LookupFilters = array("dx1" => '`Nama`', "dx2" => '`NIM`');
 		ew_AddFilter($sWhereWrk, $sFilterWrk);
 		$this->Lookup_Selecting($this->_UserID, $sWhereWrk); // Call Lookup selecting
 		if ($sWhereWrk <> "") $sSqlWrk .= " WHERE " . $sWhereWrk;
@@ -669,6 +670,7 @@ class ct_daftarm extends cTable {
 			if ($rswrk && !$rswrk->EOF) { // Lookup values found
 				$arwrk = array();
 				$arwrk[1] = $rswrk->fields('DispFld');
+				$arwrk[2] = $rswrk->fields('Disp2Fld');
 				$this->_UserID->ViewValue = $this->_UserID->DisplayValue($arwrk);
 				$rswrk->Close();
 			} else {
@@ -686,6 +688,9 @@ class ct_daftarm extends cTable {
 
 		// BuktiBayar
 		if (!ew_Empty($this->BuktiBayar->Upload->DbValue)) {
+			$this->BuktiBayar->ImageWidth = EW_THUMBNAIL_DEFAULT_WIDTH;
+			$this->BuktiBayar->ImageHeight = EW_THUMBNAIL_DEFAULT_HEIGHT;
+			$this->BuktiBayar->ImageAlt = $this->BuktiBayar->FldAlt();
 			$this->BuktiBayar->ViewValue = $this->BuktiBayar->Upload->DbValue;
 		} else {
 			$this->BuktiBayar->ViewValue = "";
@@ -700,13 +705,7 @@ class ct_daftarm extends cTable {
 
 		// Acc
 		if (strval($this->Acc->CurrentValue) <> "") {
-			$this->Acc->ViewValue = "";
-			$arwrk = explode(",", strval($this->Acc->CurrentValue));
-			$cnt = count($arwrk);
-			for ($ari = 0; $ari < $cnt; $ari++) {
-				$this->Acc->ViewValue .= $this->Acc->OptionCaption(trim($arwrk[$ari]));
-				if ($ari < $cnt-1) $this->Acc->ViewValue .= ew_ViewOptionSeparator($ari);
-			}
+			$this->Acc->ViewValue = $this->Acc->OptionCaption($this->Acc->CurrentValue);
 		} else {
 			$this->Acc->ViewValue = NULL;
 		}
@@ -729,9 +728,21 @@ class ct_daftarm extends cTable {
 
 		// BuktiBayar
 		$this->BuktiBayar->LinkCustomAttributes = "";
-		$this->BuktiBayar->HrefValue = "";
+		if (!ew_Empty($this->BuktiBayar->Upload->DbValue)) {
+			$this->BuktiBayar->HrefValue = ew_GetFileUploadUrl($this->BuktiBayar, $this->BuktiBayar->Upload->DbValue); // Add prefix/suffix
+			$this->BuktiBayar->LinkAttrs["target"] = ""; // Add target
+			if ($this->Export <> "") $this->BuktiBayar->HrefValue = ew_ConvertFullUrl($this->BuktiBayar->HrefValue);
+		} else {
+			$this->BuktiBayar->HrefValue = "";
+		}
 		$this->BuktiBayar->HrefValue2 = $this->BuktiBayar->UploadPath . $this->BuktiBayar->Upload->DbValue;
 		$this->BuktiBayar->TooltipValue = "";
+		if ($this->BuktiBayar->UseColorbox) {
+			if (ew_Empty($this->BuktiBayar->TooltipValue))
+				$this->BuktiBayar->LinkAttrs["title"] = $Language->Phrase("ViewImageGallery");
+			$this->BuktiBayar->LinkAttrs["data-rel"] = "t_daftarm_x_BuktiBayar";
+			ew_AppendClass($this->BuktiBayar->LinkAttrs["class"], "ewLightbox");
+		}
 
 		// JumlahBayar
 		$this->JumlahBayar->LinkCustomAttributes = "";
@@ -774,6 +785,9 @@ class ct_daftarm extends cTable {
 		$this->BuktiBayar->EditAttrs["class"] = "form-control";
 		$this->BuktiBayar->EditCustomAttributes = "";
 		if (!ew_Empty($this->BuktiBayar->Upload->DbValue)) {
+			$this->BuktiBayar->ImageWidth = EW_THUMBNAIL_DEFAULT_WIDTH;
+			$this->BuktiBayar->ImageHeight = EW_THUMBNAIL_DEFAULT_HEIGHT;
+			$this->BuktiBayar->ImageAlt = $this->BuktiBayar->FldAlt();
 			$this->BuktiBayar->EditValue = $this->BuktiBayar->Upload->DbValue;
 		} else {
 			$this->BuktiBayar->EditValue = "";
@@ -1186,8 +1200,11 @@ class ct_daftarm extends cTable {
 	function Row_Rendered() {
 
 		// To view properties of field class, use:
-		//var_dump($this-><FieldName>); 
+		//var_dump($this-><FieldName>);
 
+		if (CurrentUserLevel() >= 0) {
+			$this->Acc->Disabled = TRUE;
+		}
 	}
 
 	// User ID Filtering event

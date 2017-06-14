@@ -41,6 +41,13 @@ jQuery.get("<?php echo $EW_RELATIVE_PATH ?>phpjs/userevt13.js");
 // Write your global startup script here
 // document.write("page loaded");
 
+<?php if (IsLoggedIn()) { ?>
+	$(document).ready(
+		function() {
+			$("#ewContentRow").append("<?php echo "<strong>".CurrentUserInfo("Nama")."</strong>";?>");
+		}
+	);
+<?php }?>
 </script>
 <?php } ?>
 </body>

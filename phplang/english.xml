@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<ew-language date="2017/6/13" version="13.0.0" id="en" name="English" desc="English" author="e.World Technology Ltd.">
+<ew-language date="2017/6/14" version="13.0.0" id="en" name="English" desc="English" author="e.World Technology Ltd.">
   <!-- 
 	*** Important Notes:
 	1. Language ID should follow: https://developers.google.com/recaptcha/docs/language,
@@ -589,6 +589,9 @@
     <menu id="5">
       <phrase id="menutext" value="Home" />
     </menu>
+    <menu id="6">
+      <phrase id="menutext" value="Pendaftaran" />
+    </menu>
     <menu id="12">
       <phrase id="menutext" value="Setup" />
     </menu>
@@ -603,12 +606,6 @@
     </menu>
     <menu id="3">
       <phrase id="menutext" value="t user level permissions" />
-    </menu>
-    <menu id="14">
-      <phrase id="menutext" value="Input" />
-    </menu>
-    <menu id="6">
-      <phrase id="menutext" value="Pendaftaran" />
     </menu>
     <menu id="13">
       <phrase id="menutext" value="View" />
@@ -706,10 +703,10 @@
         <phrase id="fldcaption" value="Daftarm ID" />
       </field>
       <field id="_userid">
-        <phrase id="fldcaption" value="User ID" />
+        <phrase id="fldcaption" value="Nama" />
       </field>
       <field id="tgljam">
-        <phrase id="fldcaption" value="Tgl Jam" />
+        <phrase id="fldcaption" value="Tgl." />
       </field>
       <field id="buktibayar">
         <phrase id="fldcaption" value="Bukti Bayar" />
@@ -718,11 +715,11 @@
         <phrase id="fldcaption" value="Jumlah Bayar" />
       </field>
       <field id="acc">
-        <phrase id="fldcaption" value="Acc" />
+        <phrase id="fldcaption" value="Disetujui" />
         <phrase id="fldtagvalue1" value="1" />
-        <phrase id="fldtagcaption1" value="Disetujui" />
+        <phrase id="fldtagcaption1" value="Ya" />
         <phrase id="fldtagvalue2" value="0" />
-        <phrase id="fldtagcaption2" value="Belum Disetujui" />
+        <phrase id="fldtagcaption2" value="Belum" />
       </field>
     </table>
     <table id="t_praktikum">
@@ -740,16 +737,16 @@
     <table id="t_daftard">
       <phrase id="tblcaption" value="Detail Pendaftaran" />
       <field id="daftradid">
-        <phrase id="fldcaption" value="Daftrad ID" />
+        <phrase id="fldcaption" value="ID" />
       </field>
       <field id="daftarmid">
-        <phrase id="fldcaption" value="Daftarm ID" />
+        <phrase id="fldcaption" value="Pendaftaran" />
       </field>
       <field id="praktikumid">
-        <phrase id="fldcaption" value="Praktikum ID" />
+        <phrase id="fldcaption" value="Praktikum" />
       </field>
       <field id="tgl">
-        <phrase id="fldcaption" value="Tgl" />
+        <phrase id="fldcaption" value="Tgl." />
       </field>
     </table>
   </project>

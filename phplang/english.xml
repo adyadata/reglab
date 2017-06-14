@@ -583,6 +583,9 @@
   <project>
     <phrase id="bodytitle" value="RegLab" />
     <phrase id="footertext" value="&amp;copy;2017 Adya Data. All rights reserved." />
+    <menu id="16">
+      <phrase id="menutext" value="r pendaftaran" />
+    </menu>
     <menu id="15">
       <phrase id="menutext" value="Detail Pendaftaran" />
     </menu>
@@ -747,6 +750,31 @@
       </field>
       <field id="tgl">
         <phrase id="fldcaption" value="Tgl." />
+      </field>
+    </table>
+    <table id="r_pendaftaran">
+      <phrase id="tblcaption" value="r pendaftaran" />
+      <field id="daftarmid">
+        <phrase id="fldcaption" value="Daftarm ID" />
+      </field>
+      <field id="_userid">
+        <phrase id="fldcaption" value="Nama" />
+      </field>
+      <field id="tgljam">
+        <phrase id="fldcaption" value="Tgl." />
+      </field>
+      <field id="buktibayar">
+        <phrase id="fldcaption" value="Bukti Bayar" />
+      </field>
+      <field id="jumlahbayar">
+        <phrase id="fldcaption" value="Jumlah Bayar" />
+      </field>
+      <field id="acc">
+        <phrase id="fldcaption" value="Disetujui" />
+        <phrase id="fldtagvalue1" value="1" />
+        <phrase id="fldtagcaption1" value="Ya" />
+        <phrase id="fldtagvalue2" value="0" />
+        <phrase id="fldtagcaption2" value="Belum" />
       </field>
     </table>
   </project>

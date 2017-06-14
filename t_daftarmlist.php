@@ -687,12 +687,18 @@ class ct_daftarm_list extends ct_daftarm {
 
 			// Get default search criteria
 			ew_AddFilter($this->DefaultSearchWhere, $this->BasicSearchWhere(TRUE));
+			ew_AddFilter($this->DefaultSearchWhere, $this->AdvancedSearchWhere(TRUE));
 
 			// Get basic search values
 			$this->LoadBasicSearchValues();
 
+			// Get and validate search values for advanced search
+			$this->LoadSearchValues(); // Get search values
+
 			// Process filter list
 			$this->ProcessFilterList();
+			if (!$this->ValidateSearch())
+				$this->setFailureMessage($gsSearchError);
 
 			// Restore search parms from Session if not searching / reset / export
 			if (($this->Export <> "" || $this->Command <> "search" && $this->Command <> "reset" && $this->Command <> "resetall") && $this->CheckSearchParms())
@@ -707,6 +713,10 @@ class ct_daftarm_list extends ct_daftarm {
 			// Get basic search criteria
 			if ($gsSearchError == "")
 				$sSrchBasic = $this->BasicSearchWhere();
+
+			// Get search criteria for advanced search
+			if ($gsSearchError == "")
+				$sSrchAdvanced = $this->AdvancedSearchWhere();
 		}
 
 		// Restore display records
@@ -726,6 +736,11 @@ class ct_daftarm_list extends ct_daftarm {
 			$this->BasicSearch->LoadDefault();
 			if ($this->BasicSearch->Keyword != "")
 				$sSrchBasic = $this->BasicSearchWhere();
+
+			// Load advanced search from default
+			if ($this->LoadAdvancedSearchDefault()) {
+				$sSrchAdvanced = $this->AdvancedSearchWhere();
+			}
 		}
 
 		// Build search criteria
@@ -1357,6 +1372,81 @@ class ct_daftarm_list extends ct_daftarm {
 		$this->BasicSearch->setType(@$filter[EW_TABLE_BASIC_SEARCH_TYPE]);
 	}
 
+	// Advanced search WHERE clause based on QueryString
+	function AdvancedSearchWhere($Default = FALSE) {
+		global $Security;
+		$sWhere = "";
+		if (!$Security->CanSearch()) return "";
+		$this->BuildSearchSql($sWhere, $this->DaftarmID, $Default, FALSE); // DaftarmID
+		$this->BuildSearchSql($sWhere, $this->_UserID, $Default, FALSE); // UserID
+		$this->BuildSearchSql($sWhere, $this->TglJam, $Default, FALSE); // TglJam
+		$this->BuildSearchSql($sWhere, $this->BuktiBayar, $Default, FALSE); // BuktiBayar
+		$this->BuildSearchSql($sWhere, $this->JumlahBayar, $Default, FALSE); // JumlahBayar
+		$this->BuildSearchSql($sWhere, $this->Acc, $Default, FALSE); // Acc
+
+		// Set up search parm
+		if (!$Default && $sWhere <> "") {
+			$this->Command = "search";
+		}
+		if (!$Default && $this->Command == "search") {
+			$this->DaftarmID->AdvancedSearch->Save(); // DaftarmID
+			$this->_UserID->AdvancedSearch->Save(); // UserID
+			$this->TglJam->AdvancedSearch->Save(); // TglJam
+			$this->BuktiBayar->AdvancedSearch->Save(); // BuktiBayar
+			$this->JumlahBayar->AdvancedSearch->Save(); // JumlahBayar
+			$this->Acc->AdvancedSearch->Save(); // Acc
+		}
+		return $sWhere;
+	}
+
+	// Build search SQL
+	function BuildSearchSql(&$Where, &$Fld, $Default, $MultiValue) {
+		$FldParm = substr($Fld->FldVar, 2);
+		$FldVal = ($Default) ? $Fld->AdvancedSearch->SearchValueDefault : $Fld->AdvancedSearch->SearchValue; // @$_GET["x_$FldParm"]
+		$FldOpr = ($Default) ? $Fld->AdvancedSearch->SearchOperatorDefault : $Fld->AdvancedSearch->SearchOperator; // @$_GET["z_$FldParm"]
+		$FldCond = ($Default) ? $Fld->AdvancedSearch->SearchConditionDefault : $Fld->AdvancedSearch->SearchCondition; // @$_GET["v_$FldParm"]
+		$FldVal2 = ($Default) ? $Fld->AdvancedSearch->SearchValue2Default : $Fld->AdvancedSearch->SearchValue2; // @$_GET["y_$FldParm"]
+		$FldOpr2 = ($Default) ? $Fld->AdvancedSearch->SearchOperator2Default : $Fld->AdvancedSearch->SearchOperator2; // @$_GET["w_$FldParm"]
+		$sWrk = "";
+
+		//$FldVal = ew_StripSlashes($FldVal);
+		if (is_array($FldVal)) $FldVal = implode(",", $FldVal);
+
+		//$FldVal2 = ew_StripSlashes($FldVal2);
+		if (is_array($FldVal2)) $FldVal2 = implode(",", $FldVal2);
+		$FldOpr = strtoupper(trim($FldOpr));
+		if ($FldOpr == "") $FldOpr = "=";
+		$FldOpr2 = strtoupper(trim($FldOpr2));
+		if ($FldOpr2 == "") $FldOpr2 = "=";
+		if (EW_SEARCH_MULTI_VALUE_OPTION == 1)
+			$MultiValue = FALSE;
+		if ($MultiValue) {
+			$sWrk1 = ($FldVal <> "") ? ew_GetMultiSearchSql($Fld, $FldOpr, $FldVal, $this->DBID) : ""; // Field value 1
+			$sWrk2 = ($FldVal2 <> "") ? ew_GetMultiSearchSql($Fld, $FldOpr2, $FldVal2, $this->DBID) : ""; // Field value 2
+			$sWrk = $sWrk1; // Build final SQL
+			if ($sWrk2 <> "")
+				$sWrk = ($sWrk <> "") ? "($sWrk) $FldCond ($sWrk2)" : $sWrk2;
+		} else {
+			$FldVal = $this->ConvertSearchValue($Fld, $FldVal);
+			$FldVal2 = $this->ConvertSearchValue($Fld, $FldVal2);
+			$sWrk = ew_GetSearchSql($Fld, $FldVal, $FldOpr, $FldCond, $FldVal2, $FldOpr2, $this->DBID);
+		}
+		ew_AddFilter($Where, $sWrk);
+	}
+
+	// Convert search value
+	function ConvertSearchValue(&$Fld, $FldVal) {
+		if ($FldVal == EW_NULL_VALUE || $FldVal == EW_NOT_NULL_VALUE)
+			return $FldVal;
+		$Value = $FldVal;
+		if ($Fld->FldDataType == EW_DATATYPE_BOOLEAN) {
+			if ($FldVal <> "") $Value = ($FldVal == "1" || strtolower(strval($FldVal)) == "y" || strtolower(strval($FldVal)) == "t") ? $Fld->TrueValue : $Fld->FalseValue;
+		} elseif ($Fld->FldDataType == EW_DATATYPE_DATE || $Fld->FldDataType == EW_DATATYPE_TIME) {
+			if ($FldVal <> "") $Value = ew_UnFormatDateTime($FldVal, $Fld->FldDateTimeFormat);
+		}
+		return $Value;
+	}
+
 	// Return basic search SQL
 	function BasicSearchSQL($arKeywords, $type) {
 		$sWhere = "";
@@ -1487,6 +1577,18 @@ class ct_daftarm_list extends ct_daftarm {
 		// Check basic search
 		if ($this->BasicSearch->IssetSession())
 			return TRUE;
+		if ($this->DaftarmID->AdvancedSearch->IssetSession())
+			return TRUE;
+		if ($this->_UserID->AdvancedSearch->IssetSession())
+			return TRUE;
+		if ($this->TglJam->AdvancedSearch->IssetSession())
+			return TRUE;
+		if ($this->BuktiBayar->AdvancedSearch->IssetSession())
+			return TRUE;
+		if ($this->JumlahBayar->AdvancedSearch->IssetSession())
+			return TRUE;
+		if ($this->Acc->AdvancedSearch->IssetSession())
+			return TRUE;
 		return FALSE;
 	}
 
@@ -1499,6 +1601,9 @@ class ct_daftarm_list extends ct_daftarm {
 
 		// Clear basic search parameters
 		$this->ResetBasicSearchParms();
+
+		// Clear advanced search parameters
+		$this->ResetAdvancedSearchParms();
 	}
 
 	// Load advanced search default values
@@ -1511,12 +1616,30 @@ class ct_daftarm_list extends ct_daftarm {
 		$this->BasicSearch->UnsetSession();
 	}
 
+	// Clear all advanced search parameters
+	function ResetAdvancedSearchParms() {
+		$this->DaftarmID->AdvancedSearch->UnsetSession();
+		$this->_UserID->AdvancedSearch->UnsetSession();
+		$this->TglJam->AdvancedSearch->UnsetSession();
+		$this->BuktiBayar->AdvancedSearch->UnsetSession();
+		$this->JumlahBayar->AdvancedSearch->UnsetSession();
+		$this->Acc->AdvancedSearch->UnsetSession();
+	}
+
 	// Restore all search parameters
 	function RestoreSearchParms() {
 		$this->RestoreSearch = TRUE;
 
 		// Restore basic search values
 		$this->BasicSearch->Load();
+
+		// Restore advanced search values
+		$this->DaftarmID->AdvancedSearch->Load();
+		$this->_UserID->AdvancedSearch->Load();
+		$this->TglJam->AdvancedSearch->Load();
+		$this->BuktiBayar->AdvancedSearch->Load();
+		$this->JumlahBayar->AdvancedSearch->Load();
+		$this->Acc->AdvancedSearch->Load();
 	}
 
 	// Set up sort parameters
@@ -2231,6 +2354,43 @@ class ct_daftarm_list extends ct_daftarm {
 		$this->BasicSearch->Type = @$_GET[EW_TABLE_BASIC_SEARCH_TYPE];
 	}
 
+	// Load search values for validation
+	function LoadSearchValues() {
+		global $objForm;
+
+		// Load search values
+		// DaftarmID
+
+		$this->DaftarmID->AdvancedSearch->SearchValue = ew_StripSlashes(@$_GET["x_DaftarmID"]);
+		if ($this->DaftarmID->AdvancedSearch->SearchValue <> "") $this->Command = "search";
+		$this->DaftarmID->AdvancedSearch->SearchOperator = @$_GET["z_DaftarmID"];
+
+		// UserID
+		$this->_UserID->AdvancedSearch->SearchValue = ew_StripSlashes(@$_GET["x__UserID"]);
+		if ($this->_UserID->AdvancedSearch->SearchValue <> "") $this->Command = "search";
+		$this->_UserID->AdvancedSearch->SearchOperator = @$_GET["z__UserID"];
+
+		// TglJam
+		$this->TglJam->AdvancedSearch->SearchValue = ew_StripSlashes(@$_GET["x_TglJam"]);
+		if ($this->TglJam->AdvancedSearch->SearchValue <> "") $this->Command = "search";
+		$this->TglJam->AdvancedSearch->SearchOperator = @$_GET["z_TglJam"];
+
+		// BuktiBayar
+		$this->BuktiBayar->AdvancedSearch->SearchValue = ew_StripSlashes(@$_GET["x_BuktiBayar"]);
+		if ($this->BuktiBayar->AdvancedSearch->SearchValue <> "") $this->Command = "search";
+		$this->BuktiBayar->AdvancedSearch->SearchOperator = @$_GET["z_BuktiBayar"];
+
+		// JumlahBayar
+		$this->JumlahBayar->AdvancedSearch->SearchValue = ew_StripSlashes(@$_GET["x_JumlahBayar"]);
+		if ($this->JumlahBayar->AdvancedSearch->SearchValue <> "") $this->Command = "search";
+		$this->JumlahBayar->AdvancedSearch->SearchOperator = @$_GET["z_JumlahBayar"];
+
+		// Acc
+		$this->Acc->AdvancedSearch->SearchValue = ew_StripSlashes(@$_GET["x_Acc"]);
+		if ($this->Acc->AdvancedSearch->SearchValue <> "") $this->Command = "search";
+		$this->Acc->AdvancedSearch->SearchOperator = @$_GET["z_Acc"];
+	}
+
 	// Load form values
 	function LoadFormValues() {
 
@@ -2677,6 +2837,33 @@ class ct_daftarm_list extends ct_daftarm {
 			// Acc
 			$this->Acc->LinkCustomAttributes = "";
 			$this->Acc->HrefValue = "";
+		} elseif ($this->RowType == EW_ROWTYPE_SEARCH) { // Search row
+
+			// UserID
+			$this->_UserID->EditAttrs["class"] = "form-control";
+			$this->_UserID->EditCustomAttributes = "";
+
+			// TglJam
+			$this->TglJam->EditAttrs["class"] = "form-control";
+			$this->TglJam->EditCustomAttributes = "";
+			$this->TglJam->EditValue = ew_HtmlEncode(ew_FormatDateTime(ew_UnFormatDateTime($this->TglJam->AdvancedSearch->SearchValue, 0), 8));
+			$this->TglJam->PlaceHolder = ew_RemoveHtml($this->TglJam->FldCaption());
+
+			// BuktiBayar
+			$this->BuktiBayar->EditAttrs["class"] = "form-control";
+			$this->BuktiBayar->EditCustomAttributes = "";
+			$this->BuktiBayar->EditValue = ew_HtmlEncode($this->BuktiBayar->AdvancedSearch->SearchValue);
+			$this->BuktiBayar->PlaceHolder = ew_RemoveHtml($this->BuktiBayar->FldCaption());
+
+			// JumlahBayar
+			$this->JumlahBayar->EditAttrs["class"] = "form-control";
+			$this->JumlahBayar->EditCustomAttributes = "";
+			$this->JumlahBayar->EditValue = ew_HtmlEncode($this->JumlahBayar->AdvancedSearch->SearchValue);
+			$this->JumlahBayar->PlaceHolder = ew_RemoveHtml($this->JumlahBayar->FldCaption());
+
+			// Acc
+			$this->Acc->EditCustomAttributes = "";
+			$this->Acc->EditValue = $this->Acc->Options(FALSE);
 		}
 		if ($this->RowType == EW_ROWTYPE_ADD ||
 			$this->RowType == EW_ROWTYPE_EDIT ||
@@ -2687,6 +2874,29 @@ class ct_daftarm_list extends ct_daftarm {
 		// Call Row Rendered event
 		if ($this->RowType <> EW_ROWTYPE_AGGREGATEINIT)
 			$this->Row_Rendered();
+	}
+
+	// Validate search
+	function ValidateSearch() {
+		global $gsSearchError;
+
+		// Initialize
+		$gsSearchError = "";
+
+		// Check if validation required
+		if (!EW_SERVER_VALIDATE)
+			return TRUE;
+
+		// Return validate result
+		$ValidateSearch = ($gsSearchError == "");
+
+		// Call Form_CustomValidate event
+		$sFormCustomError = "";
+		$ValidateSearch = $ValidateSearch && $this->Form_CustomValidate($sFormCustomError);
+		if ($sFormCustomError <> "") {
+			ew_AddMessage($gsSearchError, $sFormCustomError);
+		}
+		return $ValidateSearch;
 	}
 
 	// Validate form
@@ -2972,6 +3182,16 @@ class ct_daftarm_list extends ct_daftarm {
 		return $AddRow;
 	}
 
+	// Load advanced search
+	function LoadAdvancedSearch() {
+		$this->DaftarmID->AdvancedSearch->Load();
+		$this->_UserID->AdvancedSearch->Load();
+		$this->TglJam->AdvancedSearch->Load();
+		$this->BuktiBayar->AdvancedSearch->Load();
+		$this->JumlahBayar->AdvancedSearch->Load();
+		$this->Acc->AdvancedSearch->Load();
+	}
+
 	// Set up export options
 	function SetupExportOptions() {
 		global $Language;
@@ -3224,6 +3444,11 @@ class ct_daftarm_list extends ct_daftarm {
 		if ($this->BasicSearch->getKeyword() <> "") {
 			$sQry .= "&" . EW_TABLE_BASIC_SEARCH . "=" . urlencode($this->BasicSearch->getKeyword()) . "&" . EW_TABLE_BASIC_SEARCH_TYPE . "=" . urlencode($this->BasicSearch->getType());
 		}
+		$this->AddSearchQueryString($sQry, $this->DaftarmID); // DaftarmID
+		$this->AddSearchQueryString($sQry, $this->_UserID); // UserID
+		$this->AddSearchQueryString($sQry, $this->TglJam); // TglJam
+		$this->AddSearchQueryString($sQry, $this->JumlahBayar); // JumlahBayar
+		$this->AddSearchQueryString($sQry, $this->Acc); // Acc
 
 		// Build QueryString for pager
 		$sQry .= "&" . EW_TABLE_REC_PER_PAGE . "=" . urlencode($this->getRecordsPerPage()) . "&" . EW_TABLE_START_REC . "=" . urlencode($this->getStartRecordNumber());
@@ -3259,7 +3484,8 @@ class ct_daftarm_list extends ct_daftarm {
 	function SetupLookupFilters($fld, $pageId = null) {
 		global $gsLanguage;
 		$pageId = $pageId ?: $this->PageID;
-		switch ($fld->FldVar) {
+		if ($pageId == "list") {
+			switch ($fld->FldVar) {
 		case "x__UserID":
 			$sSqlWrk = "";
 			$sSqlWrk = "SELECT `UserID` AS `LinkFld`, `Nama` AS `DispFld`, `NIM` AS `Disp2Fld`, '' AS `Disp3Fld`, '' AS `Disp4Fld` FROM `t_user`";
@@ -3273,15 +3499,24 @@ class ct_daftarm_list extends ct_daftarm {
 			if ($sSqlWrk <> "")
 				$fld->LookupFilters["s"] .= $sSqlWrk;
 			break;
-		}
+			}
+		} elseif ($pageId == "extbs") {
+			switch ($fld->FldVar) {
+			}
+		} 
 	}
 
 	// Setup AutoSuggest filters of a field
 	function SetupAutoSuggestFilters($fld, $pageId = null) {
 		global $gsLanguage;
 		$pageId = $pageId ?: $this->PageID;
-		switch ($fld->FldVar) {
-		}
+		if ($pageId == "list") {
+			switch ($fld->FldVar) {
+			}
+		} elseif ($pageId == "extbs") {
+			switch ($fld->FldVar) {
+			}
+		} 
 	}
 
 	// Page Load event
@@ -3501,6 +3736,38 @@ ft_daftarmlist.Lists["x_Acc"].Options = <?php echo json_encode($t_daftarm->Acc->
 
 // Form object for search
 var CurrentSearchForm = ft_daftarmlistsrch = new ew_Form("ft_daftarmlistsrch");
+
+// Validate function for search
+ft_daftarmlistsrch.Validate = function(fobj) {
+	if (!this.ValidateRequired)
+		return true; // Ignore validation
+	fobj = fobj || this.Form;
+	var infix = "";
+
+	// Fire Form_CustomValidate event
+	if (!this.Form_CustomValidate(fobj))
+		return false;
+	return true;
+}
+
+// Form_CustomValidate event
+ft_daftarmlistsrch.Form_CustomValidate = 
+ function(fobj) { // DO NOT CHANGE THIS LINE!
+
+ 	// Your custom validation code here, return false if invalid. 
+ 	return true;
+ }
+
+// Use JavaScript validation or not
+<?php if (EW_CLIENT_VALIDATE) { ?>
+ft_daftarmlistsrch.ValidateRequired = true; // Use JavaScript validation
+<?php } else { ?>
+ft_daftarmlistsrch.ValidateRequired = false; // No JavaScript validation
+<?php } ?>
+
+// Dynamic selection lists
+ft_daftarmlistsrch.Lists["x_Acc"] = {"LinkField":"","Ajax":null,"AutoFill":false,"DisplayFields":["","","",""],"ParentFields":[],"ChildFields":[],"FilterFields":[],"Options":[],"Template":""};
+ft_daftarmlistsrch.Lists["x_Acc"].Options = <?php echo json_encode($t_daftarm->Acc->Options()) ?>;
 </script>
 <script type="text/javascript">
 
@@ -3578,7 +3845,32 @@ $t_daftarm_list->RenderOtherOptions();
 <input type="hidden" name="cmd" value="search">
 <input type="hidden" name="t" value="t_daftarm">
 	<div class="ewBasicSearch">
+<?php
+if ($gsSearchError == "")
+	$t_daftarm_list->LoadAdvancedSearch(); // Load advanced search
+
+// Render for search
+$t_daftarm->RowType = EW_ROWTYPE_SEARCH;
+
+// Render row
+$t_daftarm->ResetAttrs();
+$t_daftarm_list->RenderRow();
+?>
 <div id="xsr_1" class="ewRow">
+<?php if ($t_daftarm->Acc->Visible) { // Acc ?>
+	<div id="xsc_Acc" class="ewCell form-group">
+		<label class="ewSearchCaption ewLabel"><?php echo $t_daftarm->Acc->FldCaption() ?></label>
+		<span class="ewSearchOperator"><?php echo $Language->Phrase("=") ?><input type="hidden" name="z_Acc" id="z_Acc" value="="></span>
+		<span class="ewSearchField">
+<div id="tp_x_Acc" class="ewTemplate"><input type="radio" data-table="t_daftarm" data-field="x_Acc" data-value-separator="<?php echo $t_daftarm->Acc->DisplayValueSeparatorAttribute() ?>" name="x_Acc" id="x_Acc" value="{value}"<?php echo $t_daftarm->Acc->EditAttributes() ?>></div>
+<div id="dsl_x_Acc" data-repeatcolumn="5" class="ewItemList" style="display: none;"><div>
+<?php echo $t_daftarm->Acc->RadioButtonListHtml(FALSE, "x_Acc") ?>
+</div></div>
+</span>
+	</div>
+<?php } ?>
+</div>
+<div id="xsr_2" class="ewRow">
 	<div class="ewQuickSearch input-group">
 	<input type="text" name="<?php echo EW_TABLE_BASIC_SEARCH ?>" id="<?php echo EW_TABLE_BASIC_SEARCH ?>" class="form-control" value="<?php echo ew_HtmlEncode($t_daftarm_list->BasicSearch->getKeyword()) ?>" placeholder="<?php echo ew_HtmlEncode($Language->Phrase("Search")) ?>">
 	<input type="hidden" name="<?php echo EW_TABLE_BASIC_SEARCH_TYPE ?>" id="<?php echo EW_TABLE_BASIC_SEARCH_TYPE ?>" value="<?php echo ew_HtmlEncode($t_daftarm_list->BasicSearch->getType()) ?>">

@@ -4,7 +4,6 @@
 
 // Generate all menu items
 $RootMenu->IsRoot = TRUE;
-$RootMenu->AddMenuItem(16, "mi_r_pendaftaran", $Language->MenuPhrase("16", "MenuText"), "r_pendaftaranreport.php", -1, "", AllowListMenu('{BDF410E2-F8A1-44BF-83FA-BA321C2274F7}r_pendaftaran'), FALSE, FALSE);
 $RootMenu->AddMenuItem(5, "mi_c_home_php", $Language->MenuPhrase("5", "MenuText"), "c_home.php", -1, "", AllowListMenu('{BDF410E2-F8A1-44BF-83FA-BA321C2274F7}c_home.php'), FALSE, TRUE);
 $RootMenu->AddMenuItem(6, "mi_t_daftarm", $Language->MenuPhrase("6", "MenuText"), "t_daftarmlist.php", -1, "", AllowListMenu('{BDF410E2-F8A1-44BF-83FA-BA321C2274F7}t_daftarm'), FALSE, FALSE);
 $RootMenu->AddMenuItem(12, "mci_Setup", $Language->MenuPhrase("12", "MenuText"), "", -1, "", TRUE, FALSE, TRUE);

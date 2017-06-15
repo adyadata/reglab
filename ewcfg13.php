@@ -25,7 +25,7 @@ define("EW_CONFIG_FILE_FOLDER", EW_PROJECT_NAME, TRUE); // Config file name
 define("EW_PROJECT_ID", "{BDF410E2-F8A1-44BF-83FA-BA321C2274F7}", TRUE); // Project ID (GUID)
 $EW_RELATED_PROJECT_ID = "";
 $EW_RELATED_LANGUAGE_FOLDER = "";
-define("EW_RANDOM_KEY", 't6Q5mxrmtaN9y8Tl', TRUE); // Random key for encryption
+define("EW_RANDOM_KEY", 'Hsmsrbsn8t35Lqx8', TRUE); // Random key for encryption
 define("EW_PROJECT_STYLESHEET_FILENAME", "phpcss/reglab.css", TRUE); // Project stylesheet file name
 define("EW_CHARSET", "", TRUE); // Project charset
 define("EW_EMAIL_CHARSET", EW_CHARSET, TRUE); // Email charset
@@ -219,7 +219,7 @@ define("EW_AUDIT_TRAIL_FIELD_NAME_NEWVALUE", "newvalue", TRUE); // Audit trail N
 
 // Security
 define("EW_ADMIN_USER_NAME", "admin", TRUE); // Administrator user name
-define("EW_ADMIN_PASSWORD", "FujitsuSH530", TRUE); // Administrator password
+define("EW_ADMIN_PASSWORD", "admin", TRUE); // Administrator password
 define("EW_USE_CUSTOM_LOGIN", TRUE, TRUE); // Use custom login
 define("EW_ALLOW_LOGIN_BY_URL", FALSE, TRUE); // Allow login by URL
 define("EW_ALLOW_LOGIN_BY_SESSION", FALSE, TRUE); // Allow login by session variables

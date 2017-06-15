@@ -282,8 +282,6 @@ class cdefault {
 			$this->Page_Terminate("t_praktikumlist.php");
 		if ($Security->AllowList(CurrentProjectID() . 't_daftard'))
 			$this->Page_Terminate("t_daftardlist.php");
-		if ($Security->AllowList(CurrentProjectID() . 'r_pendaftaran'))
-			$this->Page_Terminate("r_pendaftaranreport.php");
 		if ($Security->IsLoggedIn()) {
 			$this->setFailureMessage(ew_DeniedMsg() . "<br><br><a href=\"logout.php\">" . $Language->Phrase("BackToLogin") . "</a>");
 		} else {
